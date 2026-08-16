@@ -3,7 +3,7 @@
     "cors": "^2.8.6",
     "express": "^5.2.1"
   },
-  "name": "project",
+  "name": "personal-dashboard",
   "version": "1.0.0",
   "description": "",
   "main": "app.js",
@@ -11,11 +11,15 @@
     "dev": "nodemon app.js",
     "start": "node app.js",
     "build": "npm --prefix frontend run build",
+    "vercel-build": "npm ci --prefix frontend && npm --prefix frontend run build",
     "check": "npm --prefix frontend run lint && npm --prefix frontend run build"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "type": "commonjs",
   "devDependencies": {
     "nodemon": "^3.1.14"

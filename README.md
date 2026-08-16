@@ -38,6 +38,14 @@ npm --prefix frontend run dev
 
 Vite proxies `/api` requests to Express on port `5000`.
 
+## Deploy to Vercel
+
+1. Push this repository to GitHub.
+2. Import the repository in Vercel and leave the project root at the repository root.
+3. Deploy. The included `vercel.json` installs and builds the frontend, serves the Vite output, and routes `/api/*` requests to the Express serverless function.
+
+The application currently stores data in JSON files. Vercel deployments have a read-only application filesystem, so the serverless function copies the initial JSON data to temporary runtime storage. The deployed application will run and accept changes, but those changes can reset when Vercel replaces a function instance or performs a new deployment. Use a managed database for durable production data.
+
 ## Frontend structure
 
 - `src/components/` contains calendar, dashboard, analytics, and domain editors.
