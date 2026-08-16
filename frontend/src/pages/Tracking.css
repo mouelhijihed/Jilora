@@ -1,0 +1,106 @@
+.tracking-header { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-5); margin-bottom: var(--space-6); }
+.tracking-header h1 { margin: 3px 0 7px; font-size: 30px; line-height: 1.15; letter-spacing: 0; }
+.tracking-header p { margin: 0; color: var(--text-secondary); }
+.tracking-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); margin-bottom: var(--space-5); overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+.metric-card { min-width: 0; padding: 15px 16px; border-right: 1px solid var(--border-subtle); }
+.metric-card:last-child { border-right: 0; }
+.metric-card span { display: block; color: var(--text-muted); font-size: 11px; }
+.metric-card strong { display: block; margin-top: 6px; color: var(--text-primary); font-size: 21px; line-height: 1.2; }
+
+.tracking-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr); gap: var(--space-5); margin-bottom: var(--space-5); }
+.tracking-card { min-width: 0; padding: 19px 20px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+.tracking-card h2 { margin: 0 0 14px; font-size: 18px; letter-spacing: 0; }
+.tracking-subsection-title { margin-top: 28px !important; }
+.tracking-list { display: flex; flex-direction: column; }
+.tracking-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 52px; padding: 10px 0; border-bottom: 1px solid var(--border-subtle); }
+.tracking-row:last-child { border-bottom: 0; }
+.tracking-main { min-width: 0; flex: 1; }
+.tracking-title { overflow: hidden; color: var(--text-primary); font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.tracking-meta { margin-top: 3px; color: var(--text-muted); font-size: 12px; }
+.tracking-value { flex: 0 0 auto; color: var(--text-secondary); font-size: 13px; font-weight: 700; text-align: right; }
+.tracking-actions-inline { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 5px; }
+.tracking-row.completed .tracking-title { color: var(--text-muted); text-decoration: line-through; }
+
+.status-badge, .priority-badge { display: inline-block; padding: 3px 7px; border: 1px solid transparent; border-radius: 4px; font-size: 10px; font-weight: 750; text-transform: capitalize; white-space: nowrap; }
+.status-todo { border-color: var(--border); background: var(--surface-elevated); color: var(--text-secondary); }
+.status-in-progress { border-color: #645020; background: var(--warning-muted); color: var(--warning); }
+.status-completed { border-color: #28583e; background: var(--success-muted); color: var(--success); }
+.status-missed { border-color: #67363b; background: var(--danger-muted); color: var(--danger); }
+.priority-low { border-color: #28583e; background: var(--success-muted); color: var(--success); }
+.priority-medium { border-color: #645020; background: var(--warning-muted); color: var(--warning); }
+.priority-high, .priority-critical { border-color: #67363b; background: var(--danger-muted); color: var(--danger); }
+.progress-track { height: 6px; margin-top: 10px; overflow: hidden; border-radius: 3px; background: var(--border-subtle); }
+.progress-track > span { display: block; height: 100%; border-radius: inherit; background: var(--progress-color, var(--accent)); transition: width var(--transition-fast); }
+.overdue { margin-inline: -8px; padding-inline: 8px; background: rgba(248, 113, 113, .055); }
+
+.gym-page { display: flex; flex-direction: column; gap: var(--space-5); }
+.gym-page .tracking-header, .gym-page .metric-grid, .gym-page .tracking-grid { margin-bottom: 0; }
+.gym-page .metric-grid { grid-template-columns: repeat(6, minmax(120px, 1fr)); }
+.section-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: 14px; }
+.section-header h2 { margin: 2px 0 0; }
+.section-header .eyebrow { margin: 0; }
+.week-navigation { display: flex; align-items: center; gap: 6px; }
+.weekly-workout-card { min-width: 0; grid-column: 1 / -1; padding: 0; overflow: hidden; }
+.weekly-workout-card > .section-header { padding: 17px 18px 2px; }
+.weekly-workout-grid { display: grid; grid-template-columns: repeat(7, minmax(110px, 1fr)); overflow-x: auto; border-top: 1px solid var(--border); }
+.weekly-workout-day { min-height: 170px; padding: 12px 10px; border-right: 1px solid var(--border-subtle); background: var(--surface); }
+.weekly-workout-day:last-child { border-right: 0; }
+.weekly-workout-day.today { background: #18211f; box-shadow: inset 0 2px var(--success); }
+.weekly-workout-date { display: flex; align-items: center; justify-content: space-between; color: var(--text-muted); }
+.weekly-workout-date span { font-size: 10px; font-weight: 750; text-transform: uppercase; }
+.weekly-workout-date strong { color: var(--text-secondary); font-size: 17px; }
+.weekly-workout-content { display: flex; align-items: flex-start; flex-direction: column; gap: 7px; margin-top: 17px; }
+.weekly-workout-items { display: flex; flex-direction: column; }
+.weekly-workout-items .weekly-workout-content + .weekly-workout-content { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-subtle); }
+.weekly-workout-content > strong { color: var(--text-primary); font-size: 13px; }
+.weekly-workout-content > span:not(.status-badge), .rest-label { color: var(--text-muted); font-size: 11px; }
+.rest-label { display: block; margin-top: 28px; text-align: center; }
+.template-status { margin-bottom: 8px; }
+
+.template-days { display: flex; flex-direction: column; gap: 9px; margin-top: 16px; }
+.template-day { padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+.template-day.active { border-color: #365245; background: #17251f; }
+.template-day-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.template-day-heading > .text-input { min-width: 0; }
+.template-day .event-form-grid { margin-top: 12px; }
+.exercise-plan { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border-subtle); }
+.exercise-plan summary { color: var(--text-secondary); cursor: pointer; font-size: 12px; font-weight: 750; }
+.exercise-editor-list, .workout-log-exercises, .set-log-list { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.exercise-editor-row { display: grid; grid-template-columns: minmax(150px, 1fr) 70px 90px 34px; gap: 7px; }
+.compact-input { min-width: 0; }
+.workout-log-exercise { padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+.set-log-row { display: grid; grid-template-columns: 52px 1fr 1fr 34px; align-items: end; gap: 8px; }
+.set-log-row > span { padding-bottom: 9px; color: var(--text-muted); font-size: 12px; }
+.set-log-row label span { display: block; margin-bottom: 3px; color: var(--text-muted); font-size: 11px; }
+
+@media (max-width: 1200px) {
+    .gym-page .metric-grid { grid-template-columns: repeat(3, 1fr); }
+    .metric-card:nth-child(3n) { border-right: 0; }
+}
+@media (max-width: 1050px) {
+    .tracking-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 700px) {
+    .tracking-header { align-items: flex-start; flex-direction: column; }
+    .tracking-actions { width: 100%; }
+    .tracking-actions > button { flex: 1; }
+    .metric-grid, .gym-page .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .metric-card:nth-child(odd) { border-right: 1px solid var(--border-subtle); }
+    .metric-card:nth-child(even) { border-right: 0; }
+    .tracking-row { align-items: flex-start; flex-wrap: wrap; }
+    .tracking-actions-inline { flex-wrap: wrap; }
+    .section-header { align-items: flex-start; flex-direction: column; }
+    .weekly-workout-card > .section-header { padding-bottom: 10px; }
+    .exercise-editor-row { grid-template-columns: 1fr 64px 78px 34px; }
+}
+@media (max-width: 460px) {
+    .metric-grid, .gym-page .metric-grid { grid-template-columns: 1fr; }
+    .metric-card, .metric-card:nth-child(odd) { border-right: 0; border-bottom: 1px solid var(--border-subtle); }
+    .metric-card:last-child { border-bottom: 0; }
+    .exercise-editor-row { grid-template-columns: 1fr 1fr 34px; }
+    .exercise-editor-row > :first-child { grid-column: 1 / -1; }
+    .set-log-row { grid-template-columns: 42px 1fr 1fr; }
+    .set-log-row .icon-button { grid-column: 3; }
+}

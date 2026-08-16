@@ -1,0 +1,79 @@
+@import "./styles/theme.css";
+
+* { box-sizing: border-box; }
+
+html, body, #root { min-height: 100%; margin: 0; }
+html { scrollbar-color: var(--border) var(--bg); }
+
+body {
+    min-width: 320px;
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+button, input, textarea, select { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .5; }
+a { color: inherit; text-decoration: none; }
+::selection { background: rgba(124, 156, 255, .28); color: var(--text-primary); }
+h1, h2, h3, p { overflow-wrap: anywhere; }
+
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.page-shell.page-shell { max-width: 1600px; min-height: 100vh; margin-left: 224px; padding: 32px clamp(20px, 4vw, 48px) 48px; }
+.page-loading { display: grid; min-height: 60vh; margin-left: 224px; place-items: center; color: var(--text-secondary); }
+
+.eyebrow { margin: 0; color: var(--text-muted); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.primary-button, .secondary-button, .danger-button, .small-button, .icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    border-radius: var(--radius-sm);
+    font-weight: 650;
+    transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+}
+.primary-button, .secondary-button, .danger-button { min-height: 38px; padding: 8px 13px; }
+.primary-button { border: 1px solid var(--accent); background: var(--accent); color: #0d1117; }
+.primary-button:hover:not(:disabled) { border-color: var(--accent-hover); background: var(--accent-hover); }
+.secondary-button { border: 1px solid var(--border); background: var(--surface-elevated); color: var(--text-primary); }
+.secondary-button:hover:not(:disabled), .small-button:hover:not(:disabled), .icon-button:hover:not(:disabled) { border-color: #3a4758; background: var(--surface-hover); }
+.danger-button { border: 1px solid #6c363b; background: var(--danger-muted); color: #ffafb0; }
+.danger-button:hover:not(:disabled) { border-color: var(--danger); background: #5a2a2e; }
+.small-button { min-height: 30px; padding: 5px 9px; border: 1px solid var(--border); background: var(--surface-elevated); color: var(--text-secondary); font-size: 12px; }
+.icon-button { width: 34px; height: 34px; padding: 0; border: 1px solid var(--border); background: var(--surface-elevated); color: var(--text-secondary); }
+.icon-button svg { width: 16px; height: 16px; }
+
+.field-label { display: block; margin-bottom: 6px; color: var(--text-secondary); font-size: 12px; font-weight: 650; }
+.text-input, .select-input, .text-area {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
+}
+.text-input, .select-input { min-height: 38px; padding: 8px 10px; }
+.text-area { min-height: 88px; padding: 9px 10px; resize: vertical; }
+.text-input::placeholder, .text-area::placeholder { color: var(--text-muted); }
+.text-input:hover, .select-input:hover, .text-area:hover { border-color: #354152; }
+.text-input:focus, .select-input:focus, .text-area:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(124, 156, 255, .14); }
+input[type="checkbox"] { accent-color: var(--accent); }
+input[type="color"] { min-height: 38px; padding: 4px; }
+
+.notice { margin-bottom: var(--space-4); padding: 10px 12px; border: 1px solid #285440; border-radius: var(--radius-sm); background: var(--success-muted); color: #a7efc4; font-size: 13px; }
+.notice-error { border-color: #70383c; background: var(--danger-muted); color: #ffb1b1; }
+.form-error { margin: 12px 0 0; color: #ffaaaa; font-size: 13px; }
+.empty-state, .chart-empty { color: var(--text-muted); }
+
+@media (max-width: 700px) {
+    .page-shell.page-shell { margin-left: 64px; padding: 24px 16px 36px; }
+    .page-loading { margin-left: 64px; }
+}

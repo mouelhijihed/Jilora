@@ -1,0 +1,20 @@
+[
+  {
+    "id": "c8191735-1eb8-439a-9249-7060b6fdd632",
+    "title": "Dynamic Programming",
+    "category": "Study",
+    "completed": false
+  },
+  {
+    "id": "b4d8776b-1ccd-436b-b65c-37530fd77903",
+    "title": "Implement API",
+    "category": "Internship",
+    "completed": false
+  },
+  {
+    "id": "b278faac-6334-49bf-b344-7d045df95510",
+    "title": "Pull workout",
+    "category": "Gym",
+    "completed": false
+  }
+]

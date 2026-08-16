@@ -1,0 +1,19 @@
+[
+  {
+    "id": "1cb83114-80ed-4bdf-9d26-088f8ed21af2",
+    "activity": "gym",
+    "subjectId": "",
+    "subject": "",
+    "topic": "Upper",
+    "plannedDuration": 5400,
+    "actualDuration": 5400,
+    "duration": 90,
+    "status": "completed",
+    "sessionType": "activity",
+    "startedAt": "2026-08-16T14:16:12.576Z",
+    "completedAt": "2026-08-16T14:16:15.120Z",
+    "workoutId": "scheduled_34159a49496e48cbf68e4b3e76e67670",
+    "createdAt": "2026-08-16T14:16:15.120Z",
+    "updatedAt": "2026-08-16T14:16:15.120Z"
+  }
+]
