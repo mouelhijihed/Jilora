@@ -69,7 +69,7 @@ export function ProductivityProvider({ children }: { children: ReactNode }) {
             const outsideRange = current.workouts.filter((workout) => workout.date < start || workout.date > end);
             return { ...current, workouts: [...outsideRange, ...workouts].sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`)) };
         });
-        await refreshEvents(start, end, false);
+        await refreshEvents(start, end);
         return workouts;
     }, [refreshEvents]);
 

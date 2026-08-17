@@ -49,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (!force && now - lastHeartbeatAt < 25000) return;
             lastHeartbeatAt = now;
             try {
-                const { presence } = await authService.heartbeat();
+                const { presence } = await authService.heartbeat(Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
                 if (!disposed) setUser((current) => current ? { ...current, presence } : current);
             } catch (error) {
                 if (!disposed && error instanceof ApiError && error.status === 401) setUser(null);

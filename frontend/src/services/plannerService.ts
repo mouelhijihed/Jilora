@@ -2,9 +2,8 @@ import { apiRequest } from "./api";
 import type { CalendarEvent, CalendarEventInput } from "../types/planner";
 
 export const plannerService = {
-    getEvents: async (start?: string, end?: string, ensureWorkoutSchedule = true) => {
+    getEvents: async (start?: string, end?: string) => {
         const query = start && end ? `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}` : "";
-        if (ensureWorkoutSchedule) await apiRequest(`/api/workout-schedule${query}`);
         return apiRequest<CalendarEvent[]>(`/api/events${query}`);
     },
     saveEvent: (event: CalendarEventInput) => apiRequest<CalendarEvent>("/api/events", { method: "POST", body: JSON.stringify(event) }),

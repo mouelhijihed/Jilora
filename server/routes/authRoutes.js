@@ -60,7 +60,7 @@ router.get("/me", async (request, response, next) => {
 });
 
 router.post("/heartbeat", requireAuth, async (request, response, next) => {
-    try { const presence=await presenceService.touch(request.userId);const partnerId=await currentPartnerId(request.userId);if(partnerId)emitToUsers([partnerId],{scope:"presence",occurredAt:new Date().toISOString()});response.json({ presence }); } catch (error) { next(error); }
+    try { const input=parse(schemas.heartbeat,request.body||{});await authService.syncTimeZone(request.userId,input.timeZone);const presence=await presenceService.touch(request.userId);const partnerId=await currentPartnerId(request.userId);if(partnerId)emitToUsers([partnerId],{scope:"presence",occurredAt:new Date().toISOString()});response.json({ presence }); } catch (error) { next(error); }
 });
 
 router.put("/profile", requireAuth, async (request, response, next) => {

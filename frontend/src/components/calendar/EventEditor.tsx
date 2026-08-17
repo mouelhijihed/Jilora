@@ -52,6 +52,7 @@ export function EventEditor({ event, initialDate, onClose, onSave, onDelete, sub
 
     const duration = calculateDuration(startTime, endTime);
     const linkedEntity = event?.metadata.entityType;
+    const completionManagedElsewhere = ["gym", "study", "job"].includes(type);
 
     async function submit(formEvent: FormEvent<HTMLFormElement>) {
         formEvent.preventDefault();
@@ -67,7 +68,7 @@ export function EventEditor({ event, initialDate, onClose, onSave, onDelete, sub
         setSaving(true);
         setError("");
         try {
-            await onSave({ title: title.trim(), type, date, startTime, endTime, completed, notes: notes.trim(), activityDetails: {
+            await onSave({ title: title.trim(), type, date, startTime, endTime, completed: completionManagedElsewhere ? event?.completed ?? false : completed, notes: notes.trim(), activityDetails: {
                 ...(type === "gym" ? { workoutType } : {}),
                 ...(type === "study" ? { subjectId } : {}),
                 ...(type === "homework" ? { subject: homeworkSubject.trim(), priority } : {}),
@@ -119,7 +120,7 @@ export function EventEditor({ event, initialDate, onClose, onSave, onDelete, sub
                     {linkedEntity && <p className="linked-event-note">This event is synchronized with its {String(linkedEntity).replace(/([A-Z])/g, " $1").toLowerCase()} record.</p>}
                     <label className="field-label" htmlFor="event-notes">Notes</label>
                     <textarea id="event-notes" className="text-area" value={notes} onChange={(inputEvent) => setNotes(inputEvent.target.value)} rows={4} maxLength={2000} />
-                    <label className="checkbox-field"><input type="checkbox" checked={completed} onChange={(inputEvent) => setCompleted(inputEvent.target.checked)} /><span>Mark as completed</span></label>
+                    {!completionManagedElsewhere && <label className="checkbox-field"><input type="checkbox" checked={completed} onChange={(inputEvent) => setCompleted(inputEvent.target.checked)} /><span>Mark as completed</span></label>}
                     {error && <p className="form-error" role="alert">{error}</p>}
                     <div className="modal-actions">
                         {onDelete && <button className="danger-button" type="button" onClick={() => void remove()} disabled={saving}>Delete</button>}

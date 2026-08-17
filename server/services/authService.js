@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const { getPool, withTransaction } = require("../db/pool");
 const { hashPassword, verifyPassword } = require("../utils/passwords");
-const { camelizeRow, dateKey } = require("../utils/records");
+const { camelizeRow, dateKeyInTimeZone, userTimeZone } = require("../utils/records");
 
 function publicUser(row) {
     if (!row) return null;
@@ -19,14 +19,15 @@ function publicUser(row) {
             partTimeJob: row.part_time_job,
         },
         onboardingCompleted: row.onboarding_completed,
+        timeZone: row.time_zone || "UTC",
     };
 }
 
 async function findPublicUser(userId, client = getPool()) {
     const result = await client.query(
         `SELECT u.id, u.email, u.username, u.first_name, u.last_name, u.created_at, u.updated_at,
-                p.student, p.gym, p.part_time_job, p.onboarding_completed
-         FROM users u JOIN user_preferences p ON p.user_id = u.id WHERE u.id = $1`,
+                p.student, p.gym, p.part_time_job, p.onboarding_completed,s.time_zone
+         FROM users u JOIN user_preferences p ON p.user_id = u.id JOIN user_settings s ON s.user_id=u.id WHERE u.id = $1`,
         [userId],
     );
     return publicUser(result.rows[0]);
@@ -43,7 +44,7 @@ async function register(input) {
         const id = crypto.randomUUID();
         await client.query("INSERT INTO users(id, email, username, password_hash, first_name, last_name) VALUES ($1,$2,$3,$4,$5,$6)", [id, email, username, passwordHash, input.firstName, input.lastName]);
         await client.query("INSERT INTO user_preferences(user_id) VALUES ($1)", [id]);
-        await client.query("INSERT INTO user_settings(user_id) VALUES ($1)", [id]);
+        await client.query("INSERT INTO user_settings(user_id,time_zone) VALUES ($1,$2)", [id,input.timeZone||"UTC"]);
         return findPublicUser(id, client);
     });
 }
@@ -57,12 +58,21 @@ async function login(emailValue, password) {
 }
 
 async function replaceWorkoutTemplate(client, userId, input) {
-    const oldEvents = await client.query("SELECT event_id FROM scheduled_workouts WHERE user_id = $1 AND template_id IS NOT NULL AND status = 'planned' AND workout_date >= CURRENT_DATE", [userId]);
-    if (oldEvents.rowCount) await client.query("DELETE FROM calendar_events WHERE user_id = $1 AND id = ANY($2::uuid[])", [userId, oldEvents.rows.map((row) => row.event_id)]);
+    const timeZone = await userTimeZone(userId,client);
+    const today = dateKeyInTimeZone(timeZone);
+    const oldEvents = await client.query("SELECT id,event_id FROM scheduled_workouts WHERE user_id=$1 AND template_id IS NOT NULL AND status='planned' AND workout_date >= $2 FOR UPDATE", [userId,today]);
+    if (oldEvents.rowCount) {
+        const workoutIds=oldEvents.rows.map((row)=>row.id);
+        const eventIds=oldEvents.rows.map((row)=>row.event_id).filter(Boolean);
+        await client.query("DELETE FROM workout_logs WHERE user_id=$1 AND scheduled_workout_id=ANY($2::uuid[])",[userId,workoutIds]);
+        await client.query("DELETE FROM activity_sessions WHERE user_id=$1 AND workout_id=ANY($2::uuid[])",[userId,workoutIds]);
+        await client.query("UPDATE scheduled_workouts SET status='cancelled',completed=FALSE,actual_minutes=0,completed_at=NULL,event_id=NULL,is_override=TRUE,updated_at=NOW() WHERE user_id=$1 AND id=ANY($2::uuid[])",[userId,workoutIds]);
+        if(eventIds.length)await client.query("DELETE FROM calendar_events WHERE user_id=$1 AND id=ANY($2::uuid[])",[userId,eventIds]);
+    }
     await client.query("DELETE FROM workout_templates WHERE user_id = $1", [userId]);
     if (!input) return;
     const templateId = crypto.randomUUID();
-    await client.query("INSERT INTO workout_templates(id,user_id,name,recurring,starts_on) VALUES ($1,$2,$3,$4,$5)", [templateId, userId, input.name, input.recurring, input.startsOn || dateKey()]);
+    await client.query("INSERT INTO workout_templates(id,user_id,name,recurring,starts_on) VALUES ($1,$2,$3,$4,$5)", [templateId, userId, input.name, input.recurring, input.startsOn || today]);
     for (const day of input.days) {
         const start = Number(day.startTime.slice(0, 2)) * 60 + Number(day.startTime.slice(3));
         const end = Number(day.endTime.slice(0, 2)) * 60 + Number(day.endTime.slice(3));
@@ -79,6 +89,9 @@ async function replaceWorkoutTemplate(client, userId, input) {
 
 async function completeOnboarding(userId, input) {
     return withTransaction(async (client) => {
+        const current = await client.query("SELECT onboarding_completed FROM user_preferences WHERE user_id=$1 FOR UPDATE",[userId]);
+        if(!current.rowCount)throw Object.assign(new Error("User preferences not found"),{status:404});
+        if(current.rows[0].onboarding_completed)throw Object.assign(new Error("Onboarding has already been completed"),{status:409});
         await client.query(
             `UPDATE user_preferences SET student=$2,gym=$3,part_time_job=$4,onboarding_completed=TRUE,updated_at=NOW() WHERE user_id=$1`,
             [userId, input.preferences.student, input.preferences.gym, input.preferences.partTimeJob],
@@ -98,6 +111,11 @@ async function completeOnboarding(userId, input) {
     });
 }
 
+async function syncTimeZone(userId,timeZone){
+    if(!timeZone)return;
+    await getPool().query("UPDATE user_settings SET time_zone=$2,updated_at=NOW() WHERE user_id=$1 AND time_zone<>$2",[userId,timeZone]);
+}
+
 async function updateProfile(userId, input) {
     return withTransaction(async (client) => {
         const result = await client.query("UPDATE users SET first_name=$2,last_name=$3,updated_at=NOW() WHERE id=$1 RETURNING id", [userId, input.firstName, input.lastName]);
@@ -107,4 +125,4 @@ async function updateProfile(userId, input) {
     });
 }
 
-module.exports = { register, login, findPublicUser, completeOnboarding, updateProfile, replaceWorkoutTemplate };
+module.exports = { register, login, findPublicUser, completeOnboarding, updateProfile, replaceWorkoutTemplate, syncTimeZone };

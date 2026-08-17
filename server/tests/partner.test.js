@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const crypto = require("crypto");
+require("./requireTestDatabase");
 
 if (!process.env.TEST_DATABASE_URL) {
     test("partner system security, privacy, and persistence", { skip: "TEST_DATABASE_URL is not configured" }, () => {});
@@ -49,7 +50,23 @@ if (!process.env.TEST_DATABASE_URL) {
             assert.equal((await anonymous("/api/auth/heartbeat", { method: "POST" })).status, 401);
             assert.equal((await b("/api/auth/heartbeat", { method: "POST" })).body.presence.online, true);
 
-            assert.equal((await a("/api/partners/invite", { method: "POST", body: JSON.stringify({ identifier: userA.username }) })).status, 400);
+            const selfUnavailable = await a("/api/partners/invite", { method: "POST", body: JSON.stringify({ identifier: userA.username }) });
+            const missingUnavailable = await a("/api/partners/invite", { method: "POST", body: JSON.stringify({ identifier: "missing_partner_account" }) });
+            assert.equal(selfUnavailable.status, 409);
+            assert.equal(missingUnavailable.status, 409);
+            assert.equal(selfUnavailable.body.message, missingUnavailable.body.message);
+
+            const pendingTargets = [];
+            for (let index = 0; index < 6; index += 1) {
+                const targetClient = await makeClient();
+                pendingTargets.push((await register(targetClient, `T${index}`)).body.user);
+            }
+            for (const target of pendingTargets.slice(0, 4)) {
+                assert.equal((await c("/api/partners/invite", { method: "POST", body: JSON.stringify({ identifier: target.username }) })).status, 201);
+            }
+            const cappedInvites = await Promise.all(pendingTargets.slice(4).map((target) => c("/api/partners/invite", { method: "POST", body: JSON.stringify({ identifier: target.username }) })));
+            assert.deepEqual(cappedInvites.map((result) => result.status).sort(), [201, 429]);
+
             const invitation = await a("/api/partners/invite", { method: "POST", body: JSON.stringify({ identifier: userB.username }) });
             assert.equal(invitation.status, 201);
             assert.equal((await b("/api/partners/invite", { method: "POST", body: JSON.stringify({ identifier: userA.username }) })).status, 409);

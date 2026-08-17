@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const crypto = require("crypto");
+require("./requireTestDatabase");
 const { io: connectSocket } = require("socket.io-client");
 
 if (!process.env.TEST_DATABASE_URL) {

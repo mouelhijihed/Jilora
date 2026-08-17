@@ -6,6 +6,7 @@ const presenceService = require("./presenceService");
 
 const invitationDays = 7;
 const sessionInviteHours = 24;
+const maximumPendingInvitations = 5;
 
 async function membership(userId, client = getPool(), lock = false) {
     const result = await client.query(
@@ -100,18 +101,20 @@ async function getState(userId) {
 async function invite(userId, identifier) {
     const value = identifier.toLowerCase();
     return withTransaction(async (client) => {
+        await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1::text,0))",[userId]);
         await expireInvitations(client, userId);
+        const pending = await client.query("SELECT COUNT(*) count FROM partner_invitations WHERE sender_id=$1 AND status='pending' AND expires_at>NOW()",[userId]);
+        if(Number(pending.rows[0].count)>=maximumPendingInvitations)fail("Too many pending partner invitations",429);
         const target = (await client.query("SELECT id,username,first_name,last_name FROM users WHERE LOWER(email)=$1 OR LOWER(username)=$1", [value])).rows[0];
-        if (!target) fail("No registered user matches that email or username", 404);
-        if (target.id === userId) fail("You cannot invite yourself");
+        if (!target || target.id === userId) fail("Unable to send partner invitation", 409);
         await lockUsers(client, [userId, target.id]);
         if (await membership(userId, client, true)) fail("Remove your current partner before inviting someone else", 409);
-        if (await membership(target.id, client, true)) fail("That user already has a partner", 409);
+        if (await membership(target.id, client, true)) fail("Unable to send partner invitation", 409);
         const duplicate = await client.query(
             "SELECT 1 FROM partner_invitations WHERE status='pending' AND expires_at>NOW() AND ((sender_id=$1 AND receiver_id=$2) OR (sender_id=$2 AND receiver_id=$1))",
             [userId, target.id],
         );
-        if (duplicate.rowCount) fail("A partner invitation is already pending", 409);
+        if (duplicate.rowCount) fail("Unable to send partner invitation", 409);
         const id = crypto.randomUUID();
         const expiresAt = new Date(Date.now() + invitationDays * 86400000);
         await client.query("INSERT INTO partner_invitations(id,sender_id,receiver_id,expires_at) VALUES($1,$2,$3,$4)", [id, userId, target.id, expiresAt]);

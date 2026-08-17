@@ -1,22 +1,22 @@
 const { getPool } = require("../db/pool");
-const { dateKey, startOfWeek, addDays } = require("../utils/records");
+const { dateKey, dateKeyInTimeZone, timeKeyInTimeZone, userTimeZone, startOfWeek, addDays } = require("../utils/records");
 const map = require("./mappers");
 const presenceService = require("./presenceService");
 const partnerService = require("./partnerService");
 
 async function dashboard(userId){
-    const today=dateKey(),weekStart=startOfWeek(),weekEnd=addDays(weekStart,6);
+    const timeZone=await userTimeZone(userId,getPool()),now=new Date(),today=dateKeyInTimeZone(timeZone,now),currentTime=timeKeyInTimeZone(timeZone,now),weekStart=startOfWeek(today),weekEnd=addDays(weekStart,6);
     const [prefs,study,homework,gym,job,tasks,schedule,upcoming,priorities]=await Promise.all([
         getPool().query("SELECT student,gym,part_time_job FROM user_preferences WHERE user_id=$1",[userId]),
         getPool().query(`SELECT
-          COALESCE((SELECT SUM(actual_minutes) FROM study_sessions WHERE user_id=$1 AND session_date=$2),0)+COALESCE((SELECT SUM(actual_duration)/60 FROM activity_sessions WHERE user_id=$1 AND activity='study' AND session_type='focus' AND status='completed' AND completed_at::date=$2),0) today,
-          COALESCE((SELECT SUM(actual_minutes) FROM study_sessions WHERE user_id=$1 AND session_date BETWEEN $3 AND $4),0)+COALESCE((SELECT SUM(actual_duration)/60 FROM activity_sessions WHERE user_id=$1 AND activity='study' AND session_type='focus' AND status='completed' AND completed_at::date BETWEEN $3 AND $4),0) weekly`,[userId,today,weekStart,weekEnd]),
+          COALESCE((SELECT SUM(actual_minutes) FROM study_sessions WHERE user_id=$1 AND session_date=$2),0)+COALESCE((SELECT SUM(actual_duration)/60 FROM activity_sessions WHERE user_id=$1 AND activity='study' AND session_type='focus' AND status='completed' AND (completed_at AT TIME ZONE $5)::date=$2),0) today,
+          COALESCE((SELECT SUM(actual_minutes) FROM study_sessions WHERE user_id=$1 AND session_date BETWEEN $3 AND $4),0)+COALESCE((SELECT SUM(actual_duration)/60 FROM activity_sessions WHERE user_id=$1 AND activity='study' AND session_type='focus' AND status='completed' AND (completed_at AT TIME ZONE $5)::date BETWEEN $3 AND $4),0) weekly`,[userId,today,weekStart,weekEnd,timeZone]),
         getPool().query(`SELECT COUNT(*) FILTER(WHERE due_date=$2 AND status<>'cancelled') total_today,COUNT(*) FILTER(WHERE due_date=$2 AND status='completed') completed_today,COUNT(*) FILTER(WHERE due_date BETWEEN $3 AND $4 AND status<>'cancelled') total_week,COUNT(*) FILTER(WHERE due_date BETWEEN $3 AND $4 AND status='completed') completed_week FROM homework WHERE user_id=$1`,[userId,today,weekStart,weekEnd]),
         getPool().query(`SELECT COUNT(*) FILTER(WHERE workout_date=$2 AND status<>'cancelled') total_today,COUNT(*) FILTER(WHERE workout_date=$2 AND completed) completed_today,COUNT(*) FILTER(WHERE workout_date BETWEEN $3 AND $4 AND status<>'cancelled') total_week,COUNT(*) FILTER(WHERE workout_date BETWEEN $3 AND $4 AND completed) completed_week,COALESCE(SUM(actual_minutes) FILTER(WHERE workout_date BETWEEN $3 AND $4 AND completed),0) weekly_minutes FROM scheduled_workouts WHERE user_id=$1`,[userId,today,weekStart,weekEnd]),
-        getPool().query(`SELECT COALESCE(SUM(actual_minutes) FILTER(WHERE work_date=$2),0)+COALESCE((SELECT SUM(actual_duration)/60 FROM activity_sessions WHERE user_id=$1 AND activity='job' AND status='completed' AND completed_at::date=$2),0) today,COALESCE(SUM(actual_minutes) FILTER(WHERE work_date BETWEEN $3 AND $4),0)+COALESCE((SELECT SUM(actual_duration)/60 FROM activity_sessions WHERE user_id=$1 AND activity='job' AND status='completed' AND completed_at::date BETWEEN $3 AND $4),0) weekly FROM work_sessions WHERE user_id=$1`,[userId,today,weekStart,weekEnd]),
+        getPool().query(`SELECT COALESCE(SUM(actual_minutes) FILTER(WHERE work_date=$2),0)+COALESCE((SELECT SUM(actual_duration)/60 FROM activity_sessions WHERE user_id=$1 AND activity='job' AND status='completed' AND (completed_at AT TIME ZONE $5)::date=$2),0) today,COALESCE(SUM(actual_minutes) FILTER(WHERE work_date BETWEEN $3 AND $4),0)+COALESCE((SELECT SUM(actual_duration)/60 FROM activity_sessions WHERE user_id=$1 AND activity='job' AND status='completed' AND (completed_at AT TIME ZONE $5)::date BETWEEN $3 AND $4),0) weekly FROM work_sessions WHERE user_id=$1`,[userId,today,weekStart,weekEnd,timeZone]),
         getPool().query("SELECT * FROM tasks WHERE user_id=$1 AND completed=FALSE AND (due_date IS NULL OR due_date<=$2) ORDER BY due_date NULLS LAST,created_at LIMIT 8",[userId,today]),
         getPool().query("SELECT * FROM calendar_events WHERE user_id=$1 AND event_date=$2 ORDER BY start_time LIMIT 12",[userId,today]),
-        getPool().query("SELECT * FROM calendar_events WHERE user_id=$1 AND completed=FALSE AND (event_date>$2 OR (event_date=$2 AND start_time>=CURRENT_TIME)) ORDER BY event_date,start_time LIMIT 8",[userId,today]),
+        getPool().query("SELECT * FROM calendar_events WHERE user_id=$1 AND completed=FALSE AND (event_date>$2 OR (event_date=$2 AND start_time>=$3::time)) ORDER BY event_date,start_time LIMIT 8",[userId,today,currentTime]),
         getPool().query("SELECT id,title,subject_name,due_date,priority,status FROM homework WHERE user_id=$1 AND status NOT IN ('completed','cancelled') ORDER BY CASE priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,due_date NULLS LAST LIMIT 6",[userId]),
     ]);
     const preferences={student:prefs.rows[0]?.student||false,gym:prefs.rows[0]?.gym||false,partTimeJob:prefs.rows[0]?.part_time_job||false};

@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const crypto = require("crypto");
+require("./requireTestDatabase");
 
 if (!process.env.TEST_DATABASE_URL) {
     test("optional onboarding subjects and workout program", { skip: "TEST_DATABASE_URL is not configured" }, () => {});
@@ -59,6 +60,10 @@ if (!process.env.TEST_DATABASE_URL) {
         assert.equal(templates.body.length, current.templates);
     }
 
+    assert.equal((await clients[0]("/api/productivity")).body.subjects.length, 0);
+    assert.equal((await clients[0]("/api/workout-templates")).body.length, 0);
+    const repeated = await clients[0]("/api/auth/onboarding", { method: "POST", body: JSON.stringify({ preferences: { student: true, gym: true, partTimeJob: false } }) });
+    assert.equal(repeated.status, 409, JSON.stringify(repeated.body));
     assert.equal((await clients[0]("/api/productivity")).body.subjects.length, 0);
     assert.equal((await clients[0]("/api/workout-templates")).body.length, 0);
 });

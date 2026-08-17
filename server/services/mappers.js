@@ -23,7 +23,7 @@ function homework(row) {
 
 function workout(row) {
     const value = camelizeRow(row);
-    return { ...value, date: dateKey(value.workoutDate), startTime: String(value.startTime).slice(0, 5), endTime: String(value.endTime).slice(0, 5), source: value.source === "manual" ? undefined : value.source };
+    return { ...value, date: dateKey(value.workoutDate), occurrenceDate: value.occurrenceDate ? dateKey(value.occurrenceDate) : null, startTime: String(value.startTime).slice(0, 5), endTime: String(value.endTime).slice(0, 5), source: value.source === "manual" ? undefined : value.source };
 }
 
 function workoutLog(row) {

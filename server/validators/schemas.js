@@ -11,6 +11,9 @@ const shortText = (maximum = 120) => z.string().trim().min(1).max(maximum);
 const optionalText = (maximum = 2000) => z.string().trim().max(maximum).default("");
 const priority = z.enum(["low", "medium", "high", "critical"]);
 const workoutType = z.enum(["Strength", "Push", "Pull", "Legs", "Upper", "Lower", "Full Body", "Cardio", "Running", "Swimming", "Cycling", "Boxing", "Taekwondo", "Football", "Calisthenics", "Weightlifting", "Other", "Rest"]);
+const timeZone = z.string().trim().min(1).max(100).refine((value) => {
+    try { new Intl.DateTimeFormat("en-US", { timeZone: value }).format(); return true; } catch { return false; }
+}, "Use a valid IANA time zone");
 
 const preferences = z.object({
     student: z.boolean(),
@@ -67,8 +70,10 @@ const schemas = {
         email: z.string().trim().email().max(320),
         password: z.string().min(10).max(200),
         confirmPassword: z.string().min(10).max(200),
+        timeZone: timeZone.optional(),
     }).strict().refine((value) => value.password === value.confirmPassword, { message: "Passwords do not match", path: ["confirmPassword"] }),
     login: z.object({ email: z.string().trim().email().max(320), password: z.string().min(1).max(200) }).strict(),
+    heartbeat: z.object({ timeZone: timeZone.optional() }).strict(),
     profile: z.object({ firstName: shortText(80), lastName: shortText(80), preferences }).strict(),
     onboarding: z.object({
         preferences,
@@ -91,18 +96,21 @@ const schemas = {
         if (value.type === "study" && !value.activityDetails.subjectId) context.addIssue({ code:"custom", path:["activityDetails","subjectId"], message:"Subject is required for Study events" });
     }),
     completed: z.object({ completed: z.boolean() }).strict(),
-    studySessionInput: z.object({ subjectId: id, ...scheduleInput.shape, actualMinutes: z.number().int().min(0).max(1440), completed: z.boolean(), notes: optionalText(2000) }).strict(),
+    studySessionInput: z.object({ subjectId: id, ...scheduleInput.shape, actualMinutes: z.number().int().min(0).max(1440), completed: z.boolean(), notes: optionalText(2000) }).strict().refine((value)=>!value.completed||value.actualMinutes>0,{message:"Completed Study sessions require actual time",path:["actualMinutes"]}),
     homeworkInput: z.object({
         title: shortText(160), subject: z.string().trim().max(120).default(""), description: optionalText(5000), dueDate: date, dueTime: time,
-        priority, estimatedMinutes: z.number().int().min(1).max(10080), status: z.enum(["todo", "in-progress", "completed"]), completedDate: date.nullable().optional(),
-    }).strict(),
+        priority, estimatedMinutes: z.number().int().min(1).max(1440), status: z.enum(["todo", "in-progress", "completed"]), completedDate: date.nullable().optional(),
+    }).strict().superRefine((value, context) => {
+        const dueMinutes = Number(value.dueTime.slice(0, 2)) * 60 + Number(value.dueTime.slice(3));
+        if (value.estimatedMinutes > dueMinutes) context.addIssue({ code:"custom", path:["estimatedMinutes"], message:"Estimated time must fit before the due time on the same day" });
+    }),
     workoutInput: z.object({ name: shortText(120), workoutType, ...scheduleInput.shape, completed: z.boolean().default(false), notes: optionalText(2000) }).strict(),
     workoutCompletion: z.object({
         durationMinutes: z.number().int().min(1).max(1440), startedAt: z.string().datetime().optional(),
         exercises: z.array(z.object({ name: shortText(120), sets: z.array(z.object({ reps: z.number().int().min(1).max(1000), weight: z.number().min(0).max(100000) }).strict()).max(30) }).strict()).max(100).default([]),
         notes: optionalText(2000),
     }).strict(),
-    workSessionInput: z.object({ ...scheduleInput.shape, actualMinutes: z.number().int().min(0).max(1440), completed: z.boolean(), notes: optionalText(2000), tasksCompleted: z.array(shortText(240)).max(50).default([]) }).strict(),
+    workSessionInput: z.object({ ...scheduleInput.shape, actualMinutes: z.number().int().min(0).max(1440), completed: z.boolean(), notes: optionalText(2000), tasksCompleted: z.array(shortText(240)).max(50).default([]) }).strict().refine((value)=>!value.completed||value.actualMinutes>0,{message:"Completed work sessions require actual time",path:["actualMinutes"]}),
     taskCreate: z.object({ title: shortText(240), category: z.enum(["Study", "Homework", "Part-Time Job", "Gym", "General"]), completed: z.boolean().default(false), dueDate: date.nullable().optional() }).strict(),
     taskPatch: z.object({ title: shortText(240).optional(), category: z.enum(["Study", "Homework", "Part-Time Job", "Gym", "General"]).optional(), completed: z.boolean().optional(), dueDate: date.nullable().optional() }).strict().refine((value) => Object.keys(value).length > 0, "Provide at least one field"),
     pomodoroSettings: z.object({ focusDuration: z.number().int().min(1).max(43200), shortBreakDuration: z.number().int().min(1).max(43200), longBreakDuration: z.number().int().min(1).max(43200) }).strict(),
@@ -113,6 +121,7 @@ const schemas = {
         startedAt: z.string().datetime().optional(), activeStartedAt: z.string().datetime().nullable().optional(), completedAt: z.string().datetime().nullable().optional(),
     }).strict(),
     partnerInvite: z.object({ identifier: z.string().trim().min(3).max(320) }).strict(),
+    workoutMaterialization: z.object({ start: date.optional(), end: date.optional() }).strict(),
     partnerSettings: z.object({
         shareStudyTime: z.boolean(), shareStudySubjects: z.boolean(), shareHomeworkProgress: z.boolean(), shareGymProgress: z.boolean(),
         shareJobHours: z.boolean(), shareCurrentActivity: z.boolean(), shareCalendar: z.boolean(), shareDetailedTasks: z.boolean(), shareDetailedWorkouts: z.boolean(),

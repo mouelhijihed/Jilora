@@ -1,13 +1,22 @@
 const express = require("express");
+const rateLimit = require("express-rate-limit");
 const service = require("../services/partnerService");
 const { schemas, parse, id } = require("../validators/schemas");
 
 const router = express.Router();
+const invitationLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 20,
+    keyGenerator: (request) => request.userId,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: { message: "Too many partner invitation attempts. Try again later." },
+});
 
 router.get("/partners", async (request,response,next)=>{try{response.json(await service.getState(request.userId));}catch(error){next(error);}});
 router.get("/partners/me", async (request,response,next)=>{try{response.json(await service.getState(request.userId));}catch(error){next(error);}});
 router.get("/partners/invitations", async (request,response,next)=>{try{const state=await service.getState(request.userId);response.json({incoming:state.incomingInvitations,outgoing:state.outgoingInvitations});}catch(error){next(error);}});
-router.post("/partners/invite", async (request,response,next)=>{try{response.status(201).json(await service.invite(request.userId,parse(schemas.partnerInvite,request.body).identifier));}catch(error){next(error);}});
+router.post("/partners/invite", invitationLimiter, async (request,response,next)=>{try{response.status(201).json(await service.invite(request.userId,parse(schemas.partnerInvite,request.body).identifier));}catch(error){next(error);}});
 router.post("/partners/invitations/:id/accept", async (request,response,next)=>{try{response.json(await service.acceptInvitation(request.userId,parse(id,request.params.id)));}catch(error){next(error);}});
 router.post("/partners/invitations/:id/decline", async (request,response,next)=>{try{await service.declineInvitation(request.userId,parse(id,request.params.id));response.status(204).end();}catch(error){next(error);}});
 router.post("/partners/invitations/:id/cancel", async (request,response,next)=>{try{await service.cancelInvitation(request.userId,parse(id,request.params.id));response.status(204).end();}catch(error){next(error);}});

@@ -1,18 +1,15 @@
 const crypto = require("crypto");
 const { getPool, withTransaction } = require("../db/pool");
 const { schedule, fail } = require("../utils/domain");
-const { dateKey } = require("../utils/records");
+const { dateKey, dateKeyInTimeZone, timeKeyInTimeZone, userTimeZone } = require("../utils/records");
 const map = require("./mappers");
 
-function validateNewEventTime(input) {
-    const today = dateKey();
+async function validateNewEventTime(userId,input) {
+    const timeZone=await userTimeZone(userId,getPool());
+    const now=new Date();
+    const today = dateKeyInTimeZone(timeZone,now);
     if (input.date < today) fail("Events cannot be created in the past", 400);
-    if (input.date === today) {
-        const [hour, minute] = input.startTime.split(":").map(Number);
-        const startsAt = new Date();
-        startsAt.setHours(hour, minute, 0, 0);
-        if (startsAt < new Date()) fail("Event start time must be in the future", 400);
-    }
+    if (input.date === today && input.startTime <= timeKeyInTimeZone(timeZone,now)) fail("Event start time must be in the future", 400);
 }
 
 async function listEvents(userId, start, end) {
@@ -64,12 +61,14 @@ async function attachTypedActivity(client, userId, event, details = {}, validate
             VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`, [entityId,userId,event.id,subject?.id||null,subjectName,event.title,event.notes,event.date,event.endTime,details.priority||"medium",event.duration,event.completed?"completed":"todo",event.completed?event.date:null,event.completed?new Date():null]);
         metadata = { entityType:"homeworkTask", entityId, ...(subject?.id?{subjectId:subject.id}:{}), subject:subjectName, priority:details.priority||"medium" };
     } else if (event.type === "study") {
+        if(event.completed)fail("Complete Study sessions from Studies so actual time is recorded",409);
         const subject = validated.studySubject || await resolveSubject(client,userId,details);
         if (!subject) fail("Subject is required for Study events");
         await client.query(`INSERT INTO study_sessions(id,user_id,event_id,subject_id,session_date,start_time,end_time,planned_minutes,actual_minutes,completed,completed_at,notes)
             VALUES($1,$2,$3,$4,$5,$6,$7,$8,0,$9,$10,$11)`, [entityId,userId,event.id,subject.id,event.date,event.startTime,event.endTime,event.duration,event.completed,event.completed?new Date():null,event.notes]);
         metadata = { entityType:"studySession", entityId, subjectId:subject.id };
     } else if (event.type === "job") {
+        if(event.completed)fail("Complete work sessions from Part-Time Job so actual time is recorded",409);
         const job = await client.query("SELECT id FROM part_time_jobs WHERE user_id=$1", [userId]);
         if (!job.rowCount) fail("Configure your part-time job first",409);
         await client.query(`INSERT INTO work_sessions(id,user_id,job_id,event_id,work_date,start_time,end_time,planned_minutes,actual_minutes,completed,completed_at,notes,tasks_completed)
@@ -81,7 +80,7 @@ async function attachTypedActivity(client, userId, event, details = {}, validate
 }
 
 async function createEvent(userId, input) {
-    validateNewEventTime(input);
+    await validateNewEventTime(userId,input);
     return withTransaction(async (client) => {
         const studySubject = input.type === "study" ? await resolveSubject(client,userId,input.activityDetails) : null;
         if (input.type === "study" && !studySubject) fail("Subject is required for Study events");
@@ -92,20 +91,22 @@ async function createEvent(userId, input) {
 
 async function findLinkedActivity(client,userId,eventId) {
     const result = await client.query(`
-        SELECT 'workout' entity_type,id entity_id,source FROM scheduled_workouts WHERE event_id=$1 AND user_id=$2
-        UNION ALL SELECT 'studySession',id,NULL FROM study_sessions WHERE event_id=$1 AND user_id=$2
-        UNION ALL SELECT 'homeworkTask',id,NULL FROM homework WHERE event_id=$1 AND user_id=$2
-        UNION ALL SELECT 'workSession',id,NULL FROM work_sessions WHERE event_id=$1 AND user_id=$2
+        SELECT 'workout' entity_type,id entity_id,source,occurrence_date,is_override FROM scheduled_workouts WHERE event_id=$1 AND user_id=$2
+        UNION ALL SELECT 'studySession',id,NULL,NULL::date,NULL::boolean FROM study_sessions WHERE event_id=$1 AND user_id=$2
+        UNION ALL SELECT 'homeworkTask',id,NULL,NULL::date,NULL::boolean FROM homework WHERE event_id=$1 AND user_id=$2
+        UNION ALL SELECT 'workSession',id,NULL,NULL::date,NULL::boolean FROM work_sessions WHERE event_id=$1 AND user_id=$2
         LIMIT 1`, [eventId,userId]);
     if (!result.rowCount) return null;
-    return { entityType:result.rows[0].entity_type, entityId:result.rows[0].entity_id, source:result.rows[0].source };
+    return { entityType:result.rows[0].entity_type, entityId:result.rows[0].entity_id, source:result.rows[0].source, occurrenceDate:result.rows[0].occurrence_date, isOverride:result.rows[0].is_override };
 }
 
 async function updateLinkedRecord(client, userId, previous, next, details = {}, link = null) {
     const entityType = link?.entityType;
     const entityId = link?.entityId;
     if (!entityType || !entityId) return;
-    if (entityType === "workout" && !previous.completed && next.completed) fail("Complete workouts through the workout log so actual time is recorded", 409);
+    if (entityType === "workout" && previous.completed !== next.completed) fail("Change workout completion through the workout log", 409);
+    if (entityType === "studySession" && previous.completed !== next.completed) fail("Change Study completion from Studies so actual time is recorded",409);
+    if (entityType === "workSession" && previous.completed !== next.completed) fail("Change work completion from Part-Time Job so actual time is recorded",409);
     if (entityType === "studySession") {
         const hasSubject = Object.prototype.hasOwnProperty.call(details,"subjectId");
         const subject = details.subjectId ? await resolveSubject(client,userId,details) : null;
@@ -124,8 +125,12 @@ async function updateLinkedRecord(client, userId, previous, next, details = {}, 
     } else if (entityType === "workSession") {
         await client.query(`UPDATE work_sessions SET work_date=$3,start_time=$4,end_time=$5,planned_minutes=$6,completed=$7,completed_at=CASE WHEN $7 THEN COALESCE(completed_at,NOW()) ELSE NULL END,notes=$8,updated_at=NOW() WHERE id=$1 AND user_id=$2`, [entityId,userId,next.date,next.startTime,next.endTime,next.duration,next.completed,next.notes]);
     } else if (entityType === "workout") {
-        await client.query(`UPDATE scheduled_workouts SET name=$3,workout_type=COALESCE($4,workout_type),workout_date=$5,start_time=$6,end_time=$7,planned_minutes=$8,notes=$9,updated_at=NOW() WHERE id=$1 AND user_id=$2`, [entityId,userId,next.title,details.workoutType||null,next.date,next.startTime,next.endTime,next.duration,next.notes]);
+        await client.query(`UPDATE scheduled_workouts SET name=$3,workout_type=COALESCE($4,workout_type),workout_date=$5,start_time=$6,end_time=$7,planned_minutes=$8,notes=$9,is_override=CASE WHEN source='recurring' THEN TRUE ELSE is_override END,updated_at=NOW() WHERE id=$1 AND user_id=$2`, [entityId,userId,next.title,details.workoutType||null,next.date,next.startTime,next.endTime,next.duration,next.notes]);
         if (details.workoutType) previous.metadata.workoutType=details.workoutType;
+        if(link.source==="recurring"){
+            previous.metadata.isOverride=true;
+            if(link.occurrenceDate)previous.metadata.occurrenceDate=dateKey(link.occurrenceDate);
+        }
     }
     await client.query("UPDATE calendar_events SET metadata=$3 WHERE id=$1 AND user_id=$2", [next.id,userId,previous.metadata]);
 }
@@ -167,7 +172,7 @@ async function deleteEvent(userId, id) {
         const link = await findLinkedActivity(client,userId,id);
         if (link?.entityType === "workout") {
             if (link.source === "recurring") {
-                await client.query("UPDATE scheduled_workouts SET status='cancelled',completed=FALSE,actual_minutes=0,completed_at=NULL,updated_at=NOW() WHERE id=$1 AND user_id=$2",[link.entityId,userId]);
+                await client.query("UPDATE scheduled_workouts SET status='cancelled',completed=FALSE,actual_minutes=0,completed_at=NULL,event_id=NULL,is_override=TRUE,updated_at=NOW() WHERE id=$1 AND user_id=$2",[link.entityId,userId]);
                 await client.query("DELETE FROM workout_logs WHERE scheduled_workout_id=$1 AND user_id=$2",[link.entityId,userId]);
                 await client.query("DELETE FROM activity_sessions WHERE workout_id=$1 AND user_id=$2",[link.entityId,userId]);
                 await client.query("DELETE FROM calendar_events WHERE id=$1 AND user_id=$2",[id,userId]);

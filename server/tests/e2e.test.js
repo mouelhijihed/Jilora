@@ -1,6 +1,7 @@
 const test=require("node:test");
 const assert=require("node:assert/strict");
 const crypto=require("crypto");
+require("./requireTestDatabase");
 
 if(!process.env.TEST_DATABASE_URL){test("authenticated persistence and ownership",{skip:"TEST_DATABASE_URL is not configured"},()=>{});}else test("authenticated persistence and ownership",async(t)=>{
     process.env.DATABASE_URL=process.env.TEST_DATABASE_URL;process.env.NODE_ENV="test";process.env.SESSION_SECRET=process.env.SESSION_SECRET||crypto.randomBytes(32).toString("hex");process.env.CLIENT_ORIGIN="http://localhost";process.env.SESSION_COOKIE_SECURE="false";process.env.SESSION_COOKIE_SAME_SITE="lax";
@@ -34,6 +35,7 @@ if(!process.env.TEST_DATABASE_URL){test("authenticated persistence and ownership
     const dashboard=await a("/api/dashboard");assert.equal(dashboard.status,200,JSON.stringify(dashboard.body));assert.equal(dashboard.body.upcoming.some((event)=>event.id===eventCreate.body.id&&event.date===tomorrow),true);assert.equal(dashboard.body.priorities[0].dueDate,"2026-08-18");
     assert.equal((await a("/api/study-sessions",{method:"POST",body:JSON.stringify({subjectId,date:"2026-08-17",startTime:"10:00",endTime:"11:00",actualMinutes:50,completed:true,notes:""})})).status,201);
     const workCreate=await a("/api/work-sessions",{method:"POST",body:JSON.stringify({date:"2026-08-17",startTime:"12:00",endTime:"16:00",actualMinutes:240,completed:true,notes:"",tasksCompleted:["Report"]})});assert.equal(workCreate.status,201,JSON.stringify(workCreate.body));
+    assert.equal((await a("/api/workout-schedule/materialize",{method:"POST",body:JSON.stringify({start:"2026-08-17",end:"2026-08-17"})})).status,200);
     const schedule=await a("/api/workout-schedule?start=2026-08-17&end=2026-08-17");assert.equal(schedule.body.length,1);
     assert.equal((await a(`/api/workouts/${schedule.body[0].id}/complete`,{method:"POST",body:JSON.stringify({durationMinutes:60,startedAt:new Date(Date.now()-3600000).toISOString(),exercises:[],notes:""})})).status,200);
     const generalWorkout=await a("/api/workouts",{method:"POST",body:JSON.stringify({name:"Taekwondo practice",workoutType:"Taekwondo",date:"2026-08-18",startTime:"18:00",endTime:"19:00",completed:false,notes:"Technique"})});assert.equal(generalWorkout.status,201,JSON.stringify(generalWorkout.body));assert.equal(generalWorkout.body.workoutType,"Taekwondo");

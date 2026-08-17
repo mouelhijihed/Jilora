@@ -10,15 +10,12 @@ function resource<T, TInput>(path: string) {
 }
 
 export const productivityService = {
-    getData: async () => {
-        await apiRequest<Workout[]>("/api/workout-schedule");
-        return apiRequest<Omit<ProductivityData, "workoutTemplates" | "workoutLogs">>("/api/productivity");
-    },
+    getData: () => apiRequest<Omit<ProductivityData, "workoutTemplates" | "workoutLogs">>("/api/productivity"),
     getWorkoutTemplates: () => apiRequest<WorkoutTemplate[]>("/api/workout-templates"),
     createWorkoutTemplate: (input: WorkoutTemplateInput) => apiRequest<WorkoutTemplate>("/api/workout-templates", { method: "POST", body: JSON.stringify(input) }),
     updateWorkoutTemplate: (id: string, input: WorkoutTemplateInput) => apiRequest<WorkoutTemplate>(`/api/workout-templates/${id}`, { method: "PUT", body: JSON.stringify(input) }),
     deleteWorkoutTemplate: (id: string) => apiRequest<void>(`/api/workout-templates/${id}`, { method: "DELETE" }),
-    getWorkoutSchedule: (start: string, end: string) => apiRequest<Workout[]>(`/api/workout-schedule?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`),
+    getWorkoutSchedule: (start: string, end: string) => apiRequest<Workout[]>("/api/workout-schedule/materialize", { method: "POST", body: JSON.stringify({ start, end }) }),
     getWorkoutLogs: () => apiRequest<WorkoutLog[]>("/api/workout-logs"),
     completeWorkout: (id: string, input: WorkoutCompletionInput) => apiRequest<WorkoutCompletionResult>(`/api/workouts/${id}/complete`, { method: "POST", body: JSON.stringify(input) }),
     reopenWorkout: (id: string) => apiRequest<Workout>(`/api/workouts/${id}/reopen`, { method: "POST", body: "{}" }),

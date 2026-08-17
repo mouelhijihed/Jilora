@@ -10,7 +10,7 @@ import "./Planner.css";
 
 export function Planner() {
     const { events, loading, error, createEvent, updateEvent, deleteEvent, refreshEvents } = usePlanner();
-    const { refreshData, subjects, partTimeJob } = useProductivity();
+    const { refreshData, subjects, partTimeJob, ensureWorkoutSchedule } = useProductivity();
     const [view, setView] = useState<CalendarView>("month");
     const [currentDate, setCurrentDate] = useState(new Date());
     const [editorOpen, setEditorOpen] = useState(false);
@@ -19,8 +19,10 @@ export function Planner() {
 
     useEffect(() => {
         const days = view === "month" ? getMonthGrid(currentDate) : view === "week" ? getWeekDays(currentDate) : [currentDate];
-        void refreshEvents(toDateKey(days[0]), toDateKey(days[days.length - 1]));
-    }, [currentDate, refreshEvents, view]);
+        const start = toDateKey(days[0]);
+        const end = toDateKey(days[days.length - 1]);
+        void ensureWorkoutSchedule(start, end).catch(async () => { await refreshEvents(start, end); });
+    }, [currentDate, ensureWorkoutSchedule, refreshEvents, view]);
 
     function openCreate(date = toDateKey(currentDate)) {
         setSelectedEvent(null);

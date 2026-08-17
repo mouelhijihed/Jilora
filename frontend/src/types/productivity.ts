@@ -59,6 +59,8 @@ export type Workout = ScheduledRecord & {
     templateId?: string;
     scheduleId?: string;
     source?: "recurring";
+    occurrenceDate?: string;
+    isOverride?: boolean;
     exercises?: WorkoutExercise[];
 };
 

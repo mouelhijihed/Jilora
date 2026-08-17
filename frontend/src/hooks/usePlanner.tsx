@@ -13,7 +13,7 @@ type PlannerContextValue = {
     updateEvent: (id: string, input: CalendarEventInput) => Promise<CalendarEvent>;
     deleteEvent: (id: string) => Promise<void>;
     setEventCompleted: (id: string, completed: boolean) => Promise<CalendarEvent>;
-    refreshEvents: (start?: string, end?: string, ensureWorkoutSchedule?: boolean) => Promise<void>;
+    refreshEvents: (start?: string, end?: string) => Promise<void>;
 };
 
 const PlannerContext = createContext<PlannerContextValue | null>(null);
@@ -23,10 +23,10 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
-    const refreshEvents = useCallback(async (start?: string, end?: string, ensureWorkoutSchedule = true) => {
+    const refreshEvents = useCallback(async (start?: string, end?: string) => {
         try {
             setError("");
-            const records = await plannerService.getEvents(start, end, ensureWorkoutSchedule);
+            const records = await plannerService.getEvents(start, end);
             setEvents((current) => start && end
                 ? [...current.filter((event) => event.date < start || event.date > end), ...records].sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`))
                 : records);

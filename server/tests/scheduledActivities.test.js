@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const crypto = require("crypto");
+require("./requireTestDatabase");
 
 if (!process.env.TEST_DATABASE_URL) {
     test("unified scheduled activities", { skip: "TEST_DATABASE_URL is not configured" }, () => {});
@@ -65,6 +66,12 @@ if (!process.env.TEST_DATABASE_URL) {
     const homeworkLink = await getPool().query("SELECT subject_id FROM homework WHERE event_id=$1", [plannerHomework.body.id]);
     assert.equal(homeworkLink.rows[0].subject_id, null);
 
+    const recordsBeforeInvalidHomework = await getPool().query("SELECT (SELECT COUNT(*) FROM homework) homework_count,(SELECT COUNT(*) FROM calendar_events) event_count");
+    const invalidHomework = await a("/api/homework-tasks", { method: "POST", body: JSON.stringify({ title: "Unrepresentable Homework", subject: "Algorithms", description: "", dueDate: tomorrow, dueTime: "01:00", priority: "medium", estimatedMinutes: 120, status: "todo", completedDate: null }) });
+    assert.equal(invalidHomework.status, 400, JSON.stringify(invalidHomework.body));
+    const recordsAfterInvalidHomework = await getPool().query("SELECT (SELECT COUNT(*) FROM homework) homework_count,(SELECT COUNT(*) FROM calendar_events) event_count");
+    assert.deepEqual(recordsAfterInvalidHomework.rows[0], recordsBeforeInvalidHomework.rows[0]);
+
     const calendarCountBeforeInvalidStudy = Number((await getPool().query("SELECT COUNT(*) count FROM calendar_events")).rows[0].count);
     const missingSubjectStudy = await a("/api/events", { method: "POST", body: JSON.stringify({ title: "Missing Subject Study", type: "study", date: tomorrow, startTime: "09:00", endTime: "10:00", completed: false, notes: "", activityDetails: {} }) });
     assert.equal(missingSubjectStudy.status, 400, JSON.stringify(missingSubjectStudy.body));
@@ -80,6 +87,13 @@ if (!process.env.TEST_DATABASE_URL) {
     assert.equal(updatedPlannerStudy.status, 200, JSON.stringify(updatedPlannerStudy.body));
     productivity = await a("/api/productivity");
     assert.equal(productivity.body.studySessions.some((item) => item.eventId === plannerStudy.body.id && item.date === dayAfter), true);
+    assert.equal((await a(`/api/events/${plannerStudy.body.id}/completed`, { method: "PATCH", body: JSON.stringify({ completed: true }) })).status, 409);
+    assert.equal((await a("/api/study-sessions", { method: "POST", body: JSON.stringify({ subjectId, date: tomorrow, startTime: "08:00", endTime: "09:00", actualMinutes: 0, completed: true, notes: "" }) })).status, 400);
+
+    const plannerJob = await a("/api/events", { method: "POST", body: JSON.stringify({ title: "Planner Job", type: "job", date: tomorrow, startTime: "15:00", endTime: "17:00", completed: false, notes: "Shift", activityDetails: {} }) });
+    assert.equal(plannerJob.status, 201, JSON.stringify(plannerJob.body));
+    assert.equal((await a(`/api/events/${plannerJob.body.id}/completed`, { method: "PATCH", body: JSON.stringify({ completed: true }) })).status, 409);
+    assert.equal((await a("/api/work-sessions", { method: "POST", body: JSON.stringify({ date: tomorrow, startTime: "17:00", endTime: "18:00", actualMinutes: 0, completed: true, notes: "", tasksCompleted: [] }) })).status, 400);
 
     const sectionStudy = await a("/api/study-sessions", { method: "POST", body: JSON.stringify({ subjectId, date: tomorrow, startTime: "13:00", endTime: "14:00", actualMinutes: 0, completed: false, notes: "Section study" }) });
     assert.equal(sectionStudy.status, 201, JSON.stringify(sectionStudy.body));
@@ -105,18 +119,61 @@ if (!process.env.TEST_DATABASE_URL) {
     assert.equal(events.find((item) => item.id === sectionWorkout.body.eventId).title, "Section Gym Updated");
     assert.equal(events.find((item) => item.id === sectionHomework.body.eventId).title, "Section Homework Updated");
 
+    const invalidHomeworkUpdate = await a(`/api/homework-tasks/${sectionHomework.body.id}`, { method: "PUT", body: JSON.stringify({ title: "Should Roll Back", subject: "Algorithms", description: "", dueDate: tomorrow, dueTime: "00:30", priority: "low", estimatedMinutes: 60, status: "todo", completedDate: null }) });
+    assert.equal(invalidHomeworkUpdate.status, 400, JSON.stringify(invalidHomeworkUpdate.body));
+    assert.equal((await a("/api/productivity")).body.homeworkTasks.find((item) => item.id === sectionHomework.body.id).title, "Section Homework Updated");
+
+    const renamedSubject = await a(`/api/subjects/${subjectId}`, { method: "PUT", body: JSON.stringify({ name: "Advanced Algorithms", targetWeeklyHours: 5, targetMonthlyHours: 20, priority: "high", color: "#72c59b" }) });
+    assert.equal(renamedSubject.status, 200, JSON.stringify(renamedSubject.body));
+    const renamedEvents = (await a(`/api/events?start=${tomorrow}&end=${dayAfter}`)).body;
+    assert.equal(renamedEvents.find((item) => item.id === plannerStudy.body.id).title, "Advanced Algorithms");
+    assert.equal((await a("/api/productivity")).body.homeworkTasks.find((item) => item.id === sectionHomework.body.id).subject, "Advanced Algorithms");
+
     const dayOfWeek = new Date(`${tomorrow}T12:00:00Z`).getUTCDay() || 7;
     const recurringTemplate = await a("/api/workout-templates", { method: "POST", body: JSON.stringify({ name: "Recurring test", recurring: true, startsOn: tomorrow, days: [{ dayOfWeek, workoutName: "Recurring Gym", workoutType: "Strength", startTime: "06:00", endTime: "07:00", exercises: [] }] }) });
     assert.equal(recurringTemplate.status, 201, JSON.stringify(recurringTemplate.body));
+    assert.equal(Number((await getPool().query("SELECT COUNT(*) count FROM scheduled_workouts WHERE template_id=$1", [recurringTemplate.body.id])).rows[0].count), 0);
+    assert.equal((await a(`/api/workout-schedule?start=${tomorrow}&end=${tomorrow}`)).status, 200);
+    assert.equal((await a(`/api/workout-schedule?start=${dayAfter}&end=${tomorrow}`)).status, 400);
+    assert.equal(Number((await getPool().query("SELECT COUNT(*) count FROM scheduled_workouts WHERE template_id=$1", [recurringTemplate.body.id])).rows[0].count), 0);
+    const materialized = await Promise.all([
+        a("/api/workout-schedule/materialize", { method: "POST", body: JSON.stringify({ start: tomorrow, end: tomorrow }) }),
+        a("/api/workout-schedule/materialize", { method: "POST", body: JSON.stringify({ start: tomorrow, end: tomorrow }) }),
+    ]);
+    assert.deepEqual(materialized.map((result) => result.status), [200, 200]);
+    assert.equal((await a("/api/workout-schedule/materialize", { method: "POST", body: JSON.stringify({ start: tomorrow, end: addDays(tomorrow, 367) }) })).status, 400);
     let schedule = (await a(`/api/workout-schedule?start=${tomorrow}&end=${tomorrow}`)).body;
     const recurringWorkout = schedule.find((item) => item.source === "recurring" && item.templateId === recurringTemplate.body.id);
     assert.ok(recurringWorkout);
-    assert.equal((await a(`/api/workouts/${recurringWorkout.id}`, { method: "DELETE" })).status, 204);
+    assert.equal(recurringWorkout.workoutType, "Strength");
+    assert.equal(Number((await getPool().query("SELECT COUNT(*) count FROM scheduled_workouts WHERE template_id=$1 AND occurrence_date=$2", [recurringTemplate.body.id,tomorrow])).rows[0].count), 1);
+    const recurringEvent = (await a(`/api/events?start=${tomorrow}&end=${tomorrow}`)).body.find((item) => item.id === recurringWorkout.eventId);
+    assert.equal(recurringEvent.metadata.workoutType, "Strength");
+    assert.equal(recurringEvent.metadata.occurrenceDate, tomorrow);
+
+    const movedRecurring = await a(`/api/workouts/${recurringWorkout.id}`, { method: "PUT", body: JSON.stringify({ name: "Moved recurring", workoutType: "Boxing", date: dayAfter, startTime: "08:00", endTime: "09:00", completed: false, notes: "Override" }) });
+    assert.equal(movedRecurring.status, 200, JSON.stringify(movedRecurring.body));
+    assert.equal(movedRecurring.body.occurrenceDate, tomorrow);
+    assert.equal(movedRecurring.body.isOverride, true);
+    assert.equal((await a("/api/workout-schedule/materialize", { method: "POST", body: JSON.stringify({ start: tomorrow, end: tomorrow }) })).status, 200);
+    const movedRow = (await getPool().query("SELECT workout_date,occurrence_date,is_override FROM scheduled_workouts WHERE id=$1", [recurringWorkout.id])).rows[0];
+    assert.equal(dateKey(movedRow.workout_date), dayAfter);
+    assert.equal(dateKey(movedRow.occurrence_date), tomorrow);
+    assert.equal(movedRow.is_override, true);
+    assert.equal(Number((await getPool().query("SELECT COUNT(*) count FROM scheduled_workouts WHERE template_id=$1 AND occurrence_date=$2", [recurringTemplate.body.id,tomorrow])).rows[0].count), 1);
+
+    const replacementTemplate = await a(`/api/workout-templates/${recurringTemplate.body.id}`, { method: "PUT", body: JSON.stringify({ name: "Recurring replacement", recurring: true, startsOn: tomorrow, days: [{ dayOfWeek, workoutName: "Replacement Gym", workoutType: "Cardio", startTime: "07:00", endTime: "08:00", exercises: [] }] }) });
+    assert.equal(replacementTemplate.status, 200, JSON.stringify(replacementTemplate.body));
+    assert.equal((await a("/api/workout-schedule/materialize", { method: "POST", body: JSON.stringify({ start: tomorrow, end: tomorrow }) })).status, 200);
     schedule = (await a(`/api/workout-schedule?start=${tomorrow}&end=${tomorrow}`)).body;
-    assert.equal(schedule.some((item) => item.id === recurringWorkout.id), false);
+    const replacementWorkout = schedule.find((item) => item.source === "recurring" && item.templateId === replacementTemplate.body.id);
+    assert.ok(replacementWorkout);
+    assert.equal(replacementWorkout.workoutType, "Cardio");
     const tombstone = await getPool().query("SELECT status,event_id FROM scheduled_workouts WHERE id=$1", [recurringWorkout.id]);
     assert.equal(tombstone.rows[0].status, "cancelled");
     assert.equal(tombstone.rows[0].event_id, null);
+    assert.equal((await a(`/api/workout-templates/${replacementTemplate.body.id}`, { method: "DELETE" })).status, 204);
+    assert.equal((await a(`/api/workout-schedule?start=${tomorrow}&end=${tomorrow}`)).body.some((item) => item.id === replacementWorkout.id), false);
 
     const dashboard = await a("/api/dashboard");
     assert.equal(dashboard.status, 200);
@@ -137,8 +194,11 @@ if (!process.env.TEST_DATABASE_URL) {
     assert.equal((await b(`/api/events/${plannerWorkout.body.id}`, { method: "DELETE" })).status, 404);
     assert.equal((await b(`/api/workouts/${plannerWorkoutRecord.id}`, { method: "DELETE" })).status, 404);
     assert.equal((await b("/api/productivity")).body.workouts.length, 0);
+    const userBId = (await getPool().query("SELECT id FROM users WHERE email='scheduled-b@example.com'")).rows[0].id;
+    await assert.rejects(getPool().query("UPDATE scheduled_workouts SET user_id=$2 WHERE id=$1", [plannerWorkoutRecord.id,userBId]), (error) => error.code === "23503");
     assert.equal((await a(`/api/events/${plannerWorkout.body.id}`, { method: "DELETE" })).status, 204);
     assert.equal((await a(`/api/events/${plannerStudy.body.id}`, { method: "DELETE" })).status, 204);
+    assert.equal((await a(`/api/events/${plannerJob.body.id}`, { method: "DELETE" })).status, 204);
     productivity = await a("/api/productivity");
     assert.equal(productivity.body.workouts.some((item) => item.eventId === plannerWorkout.body.id), false);
     assert.equal(productivity.body.studySessions.some((item) => item.eventId === plannerStudy.body.id), false);
