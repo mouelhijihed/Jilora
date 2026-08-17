@@ -43,6 +43,11 @@ export function EventEditor({ event, initialDate, onClose, onSave, onDelete }: E
         formEvent.preventDefault();
         if (!title.trim()) return setError("Enter an event title");
         if (duration <= 0) return setError("End time must be later than start time");
+        if (!event) {
+            const startsAt = new Date(`${date}T${startTime}:00`);
+            if (Number.isNaN(startsAt.getTime())) return setError("Enter a valid event date and time");
+            if (startsAt < new Date()) return setError("Event start time must be in the future");
+        }
         setSaving(true);
         setError("");
         try {
@@ -80,8 +85,8 @@ export function EventEditor({ event, initialDate, onClose, onSave, onDelete }: E
                     <input id="event-title" className="text-input" value={title} onChange={(inputEvent) => setTitle(inputEvent.target.value)} maxLength={120} autoFocus required disabled={linkedEntity === "studySession"} />
 
                     <div className="event-form-grid">
-                        <label><span className="field-label">Category</span><select className="select-input" value={type} onChange={(inputEvent) => setType(inputEvent.target.value as CalendarEventType)} disabled={Boolean(linkedEntity)}>{eventTypes.map((eventType) => <option value={eventType} key={eventType}>{eventType[0].toUpperCase() + eventType.slice(1)}</option>)}</select></label>
-                        <label><span className="field-label">Date</span><input className="text-input" type="date" value={date} onChange={(inputEvent) => setDate(inputEvent.target.value)} required /></label>
+                        <label><span className="field-label">Category</span><select className="select-input" value={type} onChange={(inputEvent) => setType(inputEvent.target.value as CalendarEventType)} disabled={Boolean(linkedEntity)}>{eventTypes.map((eventType) => <option value={eventType} key={eventType}>{eventType === "job" ? "Part-Time Job" : eventType[0].toUpperCase() + eventType.slice(1)}</option>)}</select></label>
+                        <label><span className="field-label">Date</span><input className="text-input" type="date" value={date} min={event ? undefined : toDateKey(new Date())} onChange={(inputEvent) => setDate(inputEvent.target.value)} required /></label>
                         <label><span className="field-label">Start time</span><input className="text-input" type="time" value={startTime} onChange={(inputEvent) => setStartTime(inputEvent.target.value)} required /></label>
                         <label><span className="field-label">End time</span><input className="text-input" type="time" value={endTime} onChange={(inputEvent) => setEndTime(inputEvent.target.value)} required /></label>
                     </div>

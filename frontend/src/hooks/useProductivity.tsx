@@ -3,7 +3,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from "react";
 import { productivityService } from "../services/productivityService";
 import { usePlanner } from "./usePlanner";
-import type { HomeworkTask, HomeworkTaskInput, InternshipDay, InternshipDayInput, ProductivityData, StudySession, StudySessionInput, StudySubject, StudySubjectInput, Workout, WorkoutCompletionInput, WorkoutCompletionResult, WorkoutInput, WorkoutTemplate, WorkoutTemplateInput } from "../types/productivity";
+import { subscribeRealtime } from "./useRealtime";
+import type { HomeworkTask, HomeworkTaskInput, PartTimeJob, PartTimeJobInput, ProductivityData, StudySession, StudySessionInput, StudySubject, StudySubjectInput, WorkSession, WorkSessionInput, Workout, WorkoutCompletionInput, WorkoutCompletionResult, WorkoutInput, WorkoutTemplate, WorkoutTemplateInput } from "../types/productivity";
 
 type ProductivityContextValue = ProductivityData & {
     loading: boolean;
@@ -24,15 +25,16 @@ type ProductivityContextValue = ProductivityData & {
     ensureWorkoutSchedule: (start: string, end: string) => Promise<Workout[]>;
     completeWorkout: (id: string, input: WorkoutCompletionInput) => Promise<WorkoutCompletionResult>;
     reopenWorkout: (id: string) => Promise<Workout>;
-    createInternshipDay: (input: InternshipDayInput) => Promise<InternshipDay>;
-    updateInternshipDay: (id: string, input: InternshipDayInput) => Promise<InternshipDay>;
-    deleteInternshipDay: (id: string) => Promise<void>;
+    savePartTimeJob: (input: PartTimeJobInput) => Promise<PartTimeJob>;
+    createWorkSession: (input: WorkSessionInput) => Promise<WorkSession>;
+    updateWorkSession: (id: string, input: WorkSessionInput) => Promise<WorkSession>;
+    deleteWorkSession: (id: string) => Promise<void>;
     createHomeworkTask: (input: HomeworkTaskInput) => Promise<HomeworkTask>;
     updateHomeworkTask: (id: string, input: HomeworkTaskInput) => Promise<HomeworkTask>;
     deleteHomeworkTask: (id: string) => Promise<void>;
 };
 
-const emptyData: ProductivityData = { subjects: [], studySessions: [], workouts: [], internshipDays: [], homeworkTasks: [], workoutTemplates: [], workoutLogs: [] };
+const emptyData: ProductivityData = { subjects: [], studySessions: [], workouts: [], partTimeJob: null, workSessions: [], homeworkTasks: [], workoutTemplates: [], workoutLogs: [] };
 const ProductivityContext = createContext<ProductivityContextValue | null>(null);
 
 export function ProductivityProvider({ children }: { children: ReactNode }) {
@@ -58,6 +60,7 @@ export function ProductivityProvider({ children }: { children: ReactNode }) {
     }, []);
 
     useEffect(() => { void refreshData(); }, [refreshData]);
+    useEffect(() => subscribeRealtime((change) => { if (["all", "productivity", "workouts"].includes(change.scope)) void refreshData(); }), [refreshData]);
 
     const syncPlanner = useCallback(() => refreshEvents(), [refreshEvents]);
     const ensureWorkoutSchedule = useCallback(async (start: string, end: string) => {
@@ -161,21 +164,26 @@ export function ProductivityProvider({ children }: { children: ReactNode }) {
             await syncPlanner();
             return workout;
         },
-        createInternshipDay: async (input) => {
-            const item = await productivityService.internshipDays.create(input);
-            setData((current) => ({ ...current, internshipDays: current.internshipDays.some((day) => day.id === item.id) ? current.internshipDays.map((day) => day.id === item.id ? item : day) : [...current.internshipDays, item] }));
+        savePartTimeJob: async (input) => {
+            const item = await productivityService.savePartTimeJob(input);
+            setData((current) => ({ ...current, partTimeJob: item }));
+            return item;
+        },
+        createWorkSession: async (input) => {
+            const item = await productivityService.workSessions.create(input);
+            setData((current) => ({ ...current, workSessions: current.workSessions.some((session) => session.id === item.id) ? current.workSessions.map((session) => session.id === item.id ? item : session) : [...current.workSessions, item] }));
             await syncPlanner();
             return item;
         },
-        updateInternshipDay: async (id, input) => {
-            const item = await productivityService.internshipDays.update(id, input);
-            setData((current) => ({ ...current, internshipDays: current.internshipDays.map((day) => day.id === id ? item : day) }));
+        updateWorkSession: async (id, input) => {
+            const item = await productivityService.workSessions.update(id, input);
+            setData((current) => ({ ...current, workSessions: current.workSessions.map((session) => session.id === id ? item : session) }));
             await syncPlanner();
             return item;
         },
-        deleteInternshipDay: async (id) => {
-            await productivityService.internshipDays.remove(id);
-            setData((current) => ({ ...current, internshipDays: current.internshipDays.filter((day) => day.id !== id) }));
+        deleteWorkSession: async (id) => {
+            await productivityService.workSessions.remove(id);
+            setData((current) => ({ ...current, workSessions: current.workSessions.filter((session) => session.id !== id) }));
             await syncPlanner();
         },
         createHomeworkTask: async (input) => {

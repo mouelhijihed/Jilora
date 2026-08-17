@@ -1,6 +1,6 @@
 import { fromDateKey, startOfCalendarWeek, toDateKey } from "./date";
 import type { CalendarEvent } from "../types/planner";
-import type { HomeworkTask, InternshipDay, StudySession, Workout } from "../types/productivity";
+import type { HomeworkTask, StudySession, WorkSession, Workout } from "../types/productivity";
 
 type PlannedRecord = { date: string; plannedMinutes: number; completed: boolean };
 type ActualRecord = PlannedRecord & { actualMinutes: number };
@@ -63,11 +63,11 @@ export function getUpcomingEvents(events: CalendarEvent[], now = new Date(), lim
     return [...events].filter((event) => `${event.date}T${event.startTime}` >= currentKey && !event.completed).sort((a, b) => `${a.date}T${a.startTime}`.localeCompare(`${b.date}T${b.startTime}`)).slice(0, limit);
 }
 
-export function eventActualMinutes(event: CalendarEvent, studySessions: StudySession[], internshipDays: InternshipDay[], workouts: Workout[]) {
+export function eventActualMinutes(event: CalendarEvent, studySessions: StudySession[], workSessions: WorkSession[], workouts: Workout[]) {
     const entityType = event.metadata.entityType;
     const entityId = event.metadata.entityId;
     if (entityType === "studySession") return studySessions.find((item) => item.id === entityId)?.actualMinutes || 0;
-    if (entityType === "internshipDay") return internshipDays.find((item) => item.id === entityId)?.actualMinutes || 0;
+    if (entityType === "workSession") return workSessions.find((item) => item.id === entityId)?.actualMinutes || 0;
     if (entityType === "workout") return workouts.find((item) => item.id === entityId)?.actualMinutes || 0;
     if (entityType === "homeworkTask") return 0;
     return event.completed ? event.duration : 0;

@@ -13,6 +13,7 @@ export const sessionService = {
     getActiveSession: () => apiRequest<ActivitySession | null>("/api/sessions/active"),
     createSession: (input: ActivitySessionInput) => apiRequest<ActivitySession>("/api/sessions", { method: "POST", body: JSON.stringify(input) }),
     updateSession: (id: string, input: Partial<ActivitySessionInput>) => apiRequest<ActivitySession>(`/api/sessions/${id}`, { method: "PUT", body: JSON.stringify(input) }),
+    cancelSession: (id: string) => apiRequest<ActivitySession>(`/api/sessions/${id}/cancel`, { method: "POST" }),
     deleteSession: (id: string) => apiRequest<void>(`/api/sessions/${id}`, { method: "DELETE" }),
     getAnalytics: (start?: string, end?: string) => apiRequest<SessionAnalytics>(`/api/sessions/analytics${queryString({ start, end })}`),
     getPomodoroSettings: () => apiRequest<PomodoroSettings>("/api/pomodoro-settings"),

@@ -1,0 +1,23 @@
+.auth-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--bg); }
+.auth-panel { width: min(100%, 460px); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); padding: 28px; }
+.auth-panel-wide { width: min(100%, 760px); }
+.auth-heading { margin-bottom: 24px; }
+.auth-heading h1 { margin: 4px 0 6px; font-size: 28px; letter-spacing: 0; }
+.auth-heading p { margin: 0; color: var(--text-secondary); }
+.auth-form, .onboarding-config { display: grid; gap: 16px; }
+.auth-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.auth-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 6px; }
+.auth-link { color: var(--accent); }
+.feature-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.feature-option { display: grid; gap: 5px; min-height: 96px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-elevated); cursor: pointer; }
+.feature-option.selected { border-color: var(--accent); background: var(--accent-muted); }
+.feature-option input { justify-self: start; }
+.feature-option span { color: var(--text-secondary); font-size: 12px; }
+.onboarding-steps { display: flex; gap: 8px; margin-bottom: 22px; }
+.onboarding-steps span { height: 4px; flex: 1; border-radius: 2px; background: var(--border); }
+.onboarding-steps span.active { background: var(--accent); }
+.config-section { padding-top: 18px; border-top: 1px solid var(--border); }
+.config-section h2 { margin: 0 0 12px; font-size: 17px; }
+.subject-row, .schedule-row-config { display: grid; grid-template-columns: 1fr 100px 100px auto; gap: 8px; align-items: end; margin-bottom: 8px; }
+.schedule-row-config { grid-template-columns: 32px 90px 1fr 120px 90px 90px; align-items: center; }
+@media(max-width:700px){.auth-grid,.feature-options{grid-template-columns:1fr}.subject-row,.schedule-row-config{grid-template-columns:1fr}.auth-actions{align-items:stretch;flex-direction:column}.auth-actions>*{width:100%}}

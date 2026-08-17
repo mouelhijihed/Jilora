@@ -2,6 +2,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { plannerService } from "../services/plannerService";
+import { subscribeRealtime } from "./useRealtime";
 import type { CalendarEvent, CalendarEventInput } from "../types/planner";
 
 type PlannerContextValue = {
@@ -37,6 +38,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
     }, []);
 
     useEffect(() => { void refreshEvents(); }, [refreshEvents]);
+    useEffect(() => subscribeRealtime((change) => { if (["all", "planner", "productivity", "workouts"].includes(change.scope)) void refreshEvents(); }), [refreshEvents]);
 
     const value = useMemo<PlannerContextValue>(() => ({
         events,
@@ -45,7 +47,7 @@ export function PlannerProvider({ children }: { children: ReactNode }) {
         refreshEvents,
         createEvent: async (input) => {
             const event = await plannerService.saveEvent(input);
-            setEvents((current) => current.some((item) => item.id === event.id) ? current.map((item) => item.id === event.id ? event : item) : [...current, event]);
+            setEvents((current) => (current.some((item) => item.id === event.id) ? current.map((item) => item.id === event.id ? event : item) : [...current, event]).sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`)));
             return event;
         },
         updateEvent: async (id, input) => {

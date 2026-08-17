@@ -1,6 +1,6 @@
 export type Priority = "low" | "medium" | "high" | "critical";
 export type HomeworkStatus = "todo" | "in-progress" | "completed";
-export type WorkoutType = "Push" | "Pull" | "Legs" | "Upper" | "Lower" | "Full Body" | "Cardio" | "Rest";
+export type WorkoutType = "Strength" | "Push" | "Pull" | "Legs" | "Upper" | "Lower" | "Full Body" | "Cardio" | "Running" | "Swimming" | "Cycling" | "Boxing" | "Taekwondo" | "Football" | "Calisthenics" | "Weightlifting" | "Other" | "Rest";
 
 export type WorkoutExercise = {
     id: string;
@@ -108,8 +108,14 @@ export type WorkoutAnalytics = {
     byWorkout: Array<{ name: string } & WorkoutPeriodStats>;
 };
 
-export type InternshipDay = ScheduledRecord & {
-    internshipName: string;
+export type PartTimeJob = PersistedRecord & {
+    jobName: string;
+    company: string;
+    hourlyTarget: number | null;
+};
+
+export type WorkSession = ScheduledRecord & {
+    jobId: string;
     actualMinutes: number;
     tasksCompleted: string[];
 };
@@ -132,7 +138,8 @@ export type ProductivityData = {
     subjects: StudySubject[];
     studySessions: StudySession[];
     workouts: Workout[];
-    internshipDays: InternshipDay[];
+    partTimeJob: PartTimeJob | null;
+    workSessions: WorkSession[];
     homeworkTasks: HomeworkTask[];
     workoutTemplates: WorkoutTemplate[];
     workoutLogs: WorkoutLog[];
@@ -149,5 +156,6 @@ export type WorkoutCompletionInput = {
     notes: string;
 };
 export type WorkoutCompletionResult = { workout: Workout; log: WorkoutLog };
-export type InternshipDayInput = Pick<InternshipDay, "internshipName" | "date" | "startTime" | "endTime" | "actualMinutes" | "completed" | "notes" | "tasksCompleted">;
+export type PartTimeJobInput = Pick<PartTimeJob, "jobName" | "company" | "hourlyTarget">;
+export type WorkSessionInput = Pick<WorkSession, "date" | "startTime" | "endTime" | "actualMinutes" | "completed" | "notes" | "tasksCompleted">;
 export type HomeworkTaskInput = Pick<HomeworkTask, "title" | "subject" | "description" | "dueDate" | "dueTime" | "priority" | "estimatedMinutes" | "status" | "completedDate">;

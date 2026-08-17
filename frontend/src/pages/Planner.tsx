@@ -50,9 +50,9 @@ export function Planner() {
     return (
         <main className="planner-page page-shell">
             <header className="planner-header">
-                <div><p className="eyebrow">Single source of truth</p><h1>Planner</h1><p>All study, work, training, homework, and personal plans in one calendar.</p></div>
+                <div><p className="eyebrow">Your schedule</p><h1>Planner</h1><p>All study, part-time work, training, homework, and personal plans in one calendar.</p></div>
                 <div className="category-legend" aria-label="Event categories">
-                    {(["study", "internship", "gym", "homework", "general"] as const).map((type) => <span className={`legend-${type}`} key={type}>{type}</span>)}
+                    {(["study", "job", "gym", "homework", "general"] as const).map((type) => <span className={`legend-${type}`} key={type}>{type === "job" ? "part-time job" : type === "gym" ? "workout" : type}</span>)}
                 </div>
             </header>
 

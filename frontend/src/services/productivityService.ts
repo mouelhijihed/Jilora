@@ -1,5 +1,5 @@
 import { apiRequest } from "./api";
-import type { HomeworkTask, HomeworkTaskInput, InternshipDay, InternshipDayInput, ProductivityData, StudySession, StudySessionInput, StudySubject, StudySubjectInput, Workout, WorkoutAnalytics, WorkoutCompletionInput, WorkoutCompletionResult, WorkoutInput, WorkoutLog, WorkoutTemplate, WorkoutTemplateInput } from "../types/productivity";
+import type { HomeworkTask, HomeworkTaskInput, PartTimeJob, PartTimeJobInput, ProductivityData, StudySession, StudySessionInput, StudySubject, StudySubjectInput, WorkSession, WorkSessionInput, Workout, WorkoutAnalytics, WorkoutCompletionInput, WorkoutCompletionResult, WorkoutInput, WorkoutLog, WorkoutTemplate, WorkoutTemplateInput } from "../types/productivity";
 
 function resource<T, TInput>(path: string) {
     return {
@@ -29,6 +29,7 @@ export const productivityService = {
     subjects: resource<StudySubject, StudySubjectInput>("subjects"),
     studySessions: resource<StudySession, StudySessionInput>("study-sessions"),
     workouts: resource<Workout, WorkoutInput>("workouts"),
-    internshipDays: resource<InternshipDay, InternshipDayInput>("internship-days"),
+    savePartTimeJob: (input: PartTimeJobInput) => apiRequest<PartTimeJob>("/api/part-time-job", { method: "PUT", body: JSON.stringify(input) }),
+    workSessions: resource<WorkSession, WorkSessionInput>("work-sessions"),
     homeworkTasks: resource<HomeworkTask, HomeworkTaskInput>("homework-tasks"),
 };

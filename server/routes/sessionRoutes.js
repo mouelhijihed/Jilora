@@ -1,0 +1,15 @@
+const express=require("express");
+const service=require("../services/sessionService");
+const {schemas,parse,id,date}=require("../validators/schemas");
+const router=express.Router();
+router.get("/sessions",async(req,res,next)=>{try{res.json(await service.listSessions(req.userId,req.query));}catch(e){next(e);}});
+router.get("/sessions/study",async(req,res,next)=>{try{res.json(await service.listSessions(req.userId,{...req.query,activity:"study"}));}catch(e){next(e);}});
+router.get("/sessions/active",async(req,res,next)=>{try{res.json(await service.activeSession(req.userId));}catch(e){next(e);}});
+router.get("/sessions/analytics",async(req,res,next)=>{try{res.json(await service.analytics(req.userId,req.query.start?parse(date,req.query.start):undefined,req.query.end?parse(date,req.query.end):undefined));}catch(e){next(e);}});
+router.post("/sessions",async(req,res,next)=>{try{res.status(201).json(await service.createSession(req.userId,parse(schemas.activitySessionCreate,req.body)));}catch(e){next(e);}});
+router.put("/sessions/:id",async(req,res,next)=>{try{res.json(await service.updateSession(req.userId,parse(id,req.params.id),parse(schemas.activitySessionUpdate,req.body)));}catch(e){next(e);}});
+router.post("/sessions/:id/cancel",async(req,res,next)=>{try{res.json(await service.cancelSession(req.userId,parse(id,req.params.id)));}catch(e){next(e);}});
+router.delete("/sessions/:id",async(req,res,next)=>{try{await service.deleteSession(req.userId,parse(id,req.params.id));res.status(204).end();}catch(e){next(e);}});
+router.get("/pomodoro-settings",async(req,res,next)=>{try{res.json(await service.getSettings(req.userId));}catch(e){next(e);}});
+router.put("/pomodoro-settings",async(req,res,next)=>{try{res.json(await service.updateSettings(req.userId,parse(schemas.pomodoroSettings,req.body)));}catch(e){next(e);}});
+module.exports={sessionRouter:router};

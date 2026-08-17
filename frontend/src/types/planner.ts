@@ -1,4 +1,4 @@
-export const eventTypes = ["gym", "study", "homework", "internship", "general"] as const;
+export const eventTypes = ["gym", "study", "homework", "job", "general"] as const;
 
 export type CalendarEventType = (typeof eventTypes)[number];
 

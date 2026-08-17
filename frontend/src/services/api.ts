@@ -1,5 +1,6 @@
 const inFlightRequests = new Map<string, Promise<unknown>>();
 const REQUEST_TIMEOUT_MS = 15000;
+const API_BASE_URL = String(import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
 export class ApiError extends Error {
     status: number;
@@ -19,14 +20,16 @@ async function performRequest<T>(url: string, options: RequestInit): Promise<T> 
     externalSignal?.addEventListener("abort", abortFromExternal, { once: true });
 
     try {
-        const response = await fetch(url, {
+        const response = await fetch(`${API_BASE_URL}${url}`, {
             ...options,
             headers: { "Content-Type": "application/json", ...options.headers },
+            credentials: "include",
             signal: controller.signal,
         });
 
         if (!response.ok) {
             const body = await response.json().catch(() => null) as { message?: string } | null;
+            if (response.status === 401 && !url.endsWith("/api/auth/me")) window.dispatchEvent(new Event("auth:unauthorized"));
             throw new ApiError(body?.message || `Request failed with status ${response.status}`, response.status);
         }
 

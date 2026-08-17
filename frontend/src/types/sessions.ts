@@ -1,4 +1,4 @@
-export type SessionActivity = "study" | "homework" | "internship" | "gym";
+export type SessionActivity = "study" | "homework" | "job" | "gym";
 export type SessionStatus = "running" | "paused" | "completed" | "cancelled";
 export type SessionType = "focus" | "shortBreak" | "longBreak" | "activity";
 
@@ -18,6 +18,7 @@ export type ActivitySession = {
     activeStartedAt: string | null;
     completedAt: string | null;
     workoutId?: string;
+    partnerSessionId?: string | null;
     createdAt: string;
     updatedAt: string;
 };

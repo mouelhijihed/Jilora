@@ -5,7 +5,7 @@ import { ModalForm } from "../forms/ModalForm";
 import { toDateKey } from "../../utils/date";
 import type { Workout, WorkoutInput, WorkoutType } from "../../types/productivity";
 
-const workoutTypes: WorkoutType[] = ["Push", "Pull", "Legs", "Upper", "Lower", "Full Body", "Cardio", "Rest"];
+const workoutTypes: WorkoutType[] = ["Strength", "Push", "Pull", "Legs", "Upper", "Lower", "Full Body", "Cardio", "Running", "Swimming", "Cycling", "Boxing", "Taekwondo", "Football", "Calisthenics", "Weightlifting", "Other", "Rest"];
 
 type WorkoutEditorProps = {
     workout: Workout | null;
@@ -39,7 +39,7 @@ export function WorkoutEditor({ workout, onClose, onSave, onDelete }: WorkoutEdi
     }
 
     return (
-        <ModalForm eyebrow="Gym planning" title={workout ? "Edit workout" : "Plan workout"} onClose={onClose}>
+        <ModalForm eyebrow="Workout planning" title={workout ? "Edit workout" : "Plan workout"} onClose={onClose}>
             <form onSubmit={(event) => void submit(event)}>
                 <label className="field-label">Workout name</label><input className="text-input" value={name} onChange={(event) => setName(event.target.value)} placeholder="Push day" required />
                 <div className="event-form-grid">

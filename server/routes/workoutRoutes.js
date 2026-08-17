@@ -1,0 +1,18 @@
+const express=require("express");
+const service=require("../services/workoutService");
+const {schemas,parse,id,date}=require("../validators/schemas");
+const router=express.Router();
+router.get("/workout-templates",async(req,res,next)=>{try{res.json(await service.getTemplates(req.userId));}catch(e){next(e);}});
+router.post("/workout-templates",async(req,res,next)=>{try{res.status(201).json(await service.createTemplate(req.userId,parse(schemas.workoutTemplateInput,req.body)));}catch(e){next(e);}});
+router.put("/workout-templates/:id",async(req,res,next)=>{try{res.json(await service.updateTemplate(req.userId,parse(id,req.params.id),parse(schemas.workoutTemplateInput,req.body)));}catch(e){next(e);}});
+router.delete("/workout-templates/:id",async(req,res,next)=>{try{await service.deleteTemplate(req.userId,parse(id,req.params.id));res.status(204).end();}catch(e){next(e);}});
+router.get("/workout-schedule",async(req,res,next)=>{try{res.json(await service.ensureSchedule(req.userId,req.query.start?parse(date,req.query.start):undefined,req.query.end?parse(date,req.query.end):undefined));}catch(e){next(e);}});
+router.get("/workouts/analytics",async(req,res,next)=>{try{const end=req.query.end?parse(date,req.query.end):new Date().toISOString().slice(0,10),start=req.query.start?parse(date,req.query.start):end;res.json(await service.analytics(req.userId,start,end));}catch(e){next(e);}});
+router.get("/workouts",async(req,res,next)=>{try{res.json(await service.listWorkouts(req.userId));}catch(e){next(e);}});
+router.get("/workout-logs",async(req,res,next)=>{try{res.json(await service.listLogs(req.userId));}catch(e){next(e);}});
+router.post("/workouts",async(req,res,next)=>{try{res.status(201).json(await service.createWorkout(req.userId,parse(schemas.workoutInput,req.body)));}catch(e){next(e);}});
+router.put("/workouts/:id",async(req,res,next)=>{try{res.json(await service.updateWorkout(req.userId,parse(id,req.params.id),parse(schemas.workoutInput,req.body)));}catch(e){next(e);}});
+router.delete("/workouts/:id",async(req,res,next)=>{try{await service.deleteWorkout(req.userId,parse(id,req.params.id));res.status(204).end();}catch(e){next(e);}});
+router.post("/workouts/:id/complete",async(req,res,next)=>{try{res.json(await service.completeWorkout(req.userId,parse(id,req.params.id),parse(schemas.workoutCompletion,req.body)));}catch(e){next(e);}});
+router.post("/workouts/:id/reopen",async(req,res,next)=>{try{res.json(await service.reopenWorkout(req.userId,parse(id,req.params.id)));}catch(e){next(e);}});
+module.exports={workoutRouter:router};

@@ -1,15 +1,27 @@
 {
   "dependencies": {
     "cors": "^2.8.6",
-    "express": "^5.2.1"
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.6.2",
+    "express-session": "^1.19.0",
+    "helmet": "^8.3.0",
+    "pg": "^8.23.0",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
+    "zod": "^4.4.3"
   },
   "name": "personal-dashboard",
   "version": "1.0.0",
-  "description": "",
+  "description": "Jilora productivity backend and production runtime",
   "main": "app.js",
   "scripts": {
     "dev": "nodemon app.js",
     "start": "node app.js",
+    "db:migrate": "node server/db/migrate.js",
+    "db:import-legacy": "node server/db/importLegacyJson.js",
+    "test": "npm run test:api",
+    "test:api": "node --test --test-concurrency=1 server/tests/*.test.js",
     "build": "npm --prefix frontend run build",
     "vercel-build": "npm ci --prefix frontend && npm --prefix frontend run build",
     "check": "npm --prefix frontend run lint && npm --prefix frontend run build"

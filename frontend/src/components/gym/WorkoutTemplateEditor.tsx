@@ -7,7 +7,7 @@ import { calculateDuration } from "../../utils/date";
 import type { WorkoutExercise, WorkoutTemplate, WorkoutTemplateDay, WorkoutTemplateInput, WorkoutType } from "../../types/productivity";
 
 const dayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-const workoutTypes: WorkoutType[] = ["Push", "Pull", "Legs", "Upper", "Lower", "Full Body", "Cardio"];
+const workoutTypes: WorkoutType[] = ["Strength", "Push", "Pull", "Legs", "Upper", "Lower", "Full Body", "Cardio", "Running", "Swimming", "Cycling", "Boxing", "Taekwondo", "Football", "Calisthenics", "Weightlifting", "Other"];
 
 type DayDraft = WorkoutTemplateDay & { active: boolean };
 
@@ -76,7 +76,7 @@ export function WorkoutTemplateEditor({ template, onClose, onSave, onDelete }: W
         catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Could not delete weekly schedule"); setSaving(false); }
     }
 
-    return <ModalForm eyebrow="Recurring gym plan" title={template ? "Edit weekly schedule" : "Create weekly schedule"} onClose={onClose}>
+    return <ModalForm eyebrow="Recurring workout plan" title={template ? "Edit weekly schedule" : "Create weekly schedule"} onClose={onClose}>
         <form onSubmit={(event) => void submit(event)}>
             <label><span className="field-label">Schedule name</span><input className="text-input" value={name} onChange={(event) => setName(event.target.value)} required /></label>
             <label className="checkbox-field"><input type="checkbox" checked={recurring} onChange={(event) => setRecurring(event.target.checked)} /><span>Automatically schedule this plan every week</span></label>

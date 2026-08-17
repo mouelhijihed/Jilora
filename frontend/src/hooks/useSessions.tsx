@@ -2,6 +2,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { sessionService } from "../services/sessionService";
+import { subscribeRealtime } from "./useRealtime";
 import type { ActivitySession, ActivitySessionInput, PomodoroSettings, SessionAnalytics } from "../types/sessions";
 
 type SessionsContextValue = {
@@ -13,6 +14,7 @@ type SessionsContextValue = {
     refreshSessions: () => Promise<void>;
     createSession: (input: ActivitySessionInput) => Promise<ActivitySession>;
     updateSession: (id: string, input: Partial<ActivitySessionInput>) => Promise<ActivitySession>;
+    cancelSession: (id: string) => Promise<ActivitySession>;
     deleteSession: (id: string) => Promise<void>;
     getAnalytics: (start?: string, end?: string) => Promise<SessionAnalytics>;
     updatePomodoroSettings: (settings: PomodoroSettings) => Promise<PomodoroSettings>;
@@ -45,6 +47,7 @@ export function SessionsProvider({ children }: { children: ReactNode }) {
     }, []);
 
     useEffect(() => { void refreshSessions(); }, [refreshSessions]);
+    useEffect(() => subscribeRealtime((change) => { if (["all", "sessions", "partner"].includes(change.scope)) void refreshSessions(); }), [refreshSessions]);
 
     const value = useMemo<SessionsContextValue>(() => ({
         sessions,
@@ -63,6 +66,12 @@ export function SessionsProvider({ children }: { children: ReactNode }) {
             const session = await sessionService.updateSession(id, input);
             setSessions((current) => current.map((item) => item.id === id ? session : item));
             setActiveSession((current) => session.status === "running" || session.status === "paused" ? session : (current?.id === id ? null : current));
+            return session;
+        },
+        cancelSession: async (id) => {
+            const session = await sessionService.cancelSession(id);
+            setSessions((current) => current.map((item) => item.id === id ? session : item));
+            setActiveSession((current) => current?.id === id ? null : current);
             return session;
         },
         deleteSession: async (id) => {

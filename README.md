@@ -1,94 +1,103 @@
-# Personal Productivity Planner
+# Jilora
 
-A full-stack personal planning system built with React, TypeScript, Vite, Express, and Recharts. The central planner is the single source of truth for study sessions, workouts, internship days, homework due dates, and general events.
+Jilora is a multi-user productivity workspace built with React, TypeScript, Vite, Express, Socket.IO, PostgreSQL, and Recharts. PostgreSQL is the source of truth; Socket.IO only signals clients to refetch current state.
 
-## Features
+## Local Development
 
-- Month, week, and day calendar views with event CRUD and completion tracking.
-- Synchronized study subjects/sessions, workout plans, internship hours, and homework tasks.
-- Persistent recurring workout templates with exercise plans, week navigation, scheduled instances, and workout logs.
-- Dashboard overview with today's schedule, progress, upcoming plans, and quick actions.
-- Filtered analytics charts for weekly hours, planned vs actual time, study subjects, completion, activity distribution, and monthly progress.
-- JSON persistence under `data/`; records survive browser and server restarts.
-
-## Run locally
-
-Install dependencies if needed:
+1. Copy `.env.example` to `.env` and set a strong `SESSION_SECRET`, database credentials, and local frontend origin.
+2. Install dependencies:
 
 ```powershell
 npm install
 npm --prefix frontend install
 ```
 
-Build the frontend and start the full application:
+3. Start PostgreSQL, then apply migrations:
 
 ```powershell
-npm run build
+docker compose up -d postgres
+npm run db:migrate
+```
+
+4. Run the persistent backend:
+
+```powershell
 npm start
 ```
 
-Open `http://localhost:5000`. Express serves the production frontend and all `/api` routes from the same origin.
+For Vite hot reload, run `npm --prefix frontend run dev` in another terminal. The Vite proxy forwards `/api` and `/socket.io` to `VITE_DEV_BACKEND_URL` or `http://localhost:5000`.
 
-For development with hot reload, run these in separate terminals:
+## Production Architecture
+
+Deploy the frontend and backend separately:
+
+- Frontend: static Vite output from the `frontend` directory.
+- Backend: the repository root as a persistent Node process. Socket.IO must run on the same HTTP server as Express.
+- Database: managed PostgreSQL with automated backups.
+
+The backend is not compatible with serverless-only hosting for Socket.IO. Use a long-lived Node service, container, VM, or platform web service.
+
+### Backend Deployment
+
+Root directory: repository root
+
+Build command: `npm ci`
+
+Release/migration command: `npm run db:migrate`
+
+Start command: `npm start`
+
+Required variables:
+
+- `NODE_ENV=production`
+- `PORT` (provided by the hosting platform when available)
+- `DATABASE_URL`
+- `SESSION_SECRET` (at least 32 random characters)
+- `FRONTEND_URL` (the exact HTTPS frontend origin; comma-separated origins are supported)
+- `DATABASE_SSL=true` when required by the PostgreSQL provider
+- `SESSION_COOKIE_SECURE=true`
+- `SESSION_COOKIE_SAME_SITE=lax` for same-site subdomains, or `none` for truly cross-site frontend/backend origins
+
+Optional variables are documented in `.env.example`.
+
+Health check: `GET /api/health` returns `{ "status": "ok" }` without exposing credentials or stack traces.
+
+### Frontend Deployment
+
+Root directory: `frontend`
+
+Build command: `npm ci && npm run build`
+
+Publish directory: `frontend/dist`
+
+Required build variables:
+
+- `VITE_API_URL=https://api.example.com`
+- `VITE_SOCKET_URL=https://api.example.com`
+
+Only `VITE_` variables are available to browser code. Never put `DATABASE_URL`, `SESSION_SECRET`, or private keys in frontend environment variables.
+
+### CORS, Cookies, and Socket.IO
+
+`FRONTEND_URL` controls both Express CORS and Socket.IO CORS. Wildcard origins are not allowed because authenticated cookies are used. The frontend sends credentials on REST and Socket.IO connections. Socket.IO authenticates through the same PostgreSQL-backed HTTP session cookie and never accepts a client-supplied user ID.
+
+REST mutations commit to PostgreSQL first, then emit a targeted `state:changed` event to the authenticated user and server-derived partner/invitation recipients. The event contains no private application data. Clients refetch REST state after events and reconnections.
+
+### Database Migrations
+
+Run migrations as a release step before starting a new backend version:
 
 ```powershell
-npm run dev
-npm --prefix frontend run dev
+npm run db:migrate
 ```
 
-Vite proxies `/api` requests to Express on port `5000`.
+Migration files are in `server/db/migrations`. Do not edit production tables manually or delete migration history.
 
-## Deploy to Vercel
-
-1. Push this repository to GitHub.
-2. Import the repository in Vercel and leave the project root at the repository root.
-3. Deploy. The included `vercel.json` installs and builds the frontend, serves the Vite output, and routes `/api/*` requests to the Express serverless function.
-
-The application currently stores data in JSON files. Vercel deployments have a read-only application filesystem, so the serverless function copies the initial JSON data to temporary runtime storage. The deployed application will run and accept changes, but those changes can reset when Vercel replaces a function instance or performs a new deployment. Use a managed database for durable production data.
-
-## Frontend structure
-
-- `src/components/` contains calendar, dashboard, analytics, and domain editors.
-- `src/hooks/` owns shared planner and productivity state.
-- `src/services/` contains the API boundary.
-- `src/types/` defines planner and domain records.
-- `src/utils/` contains date and analytics calculations.
-- `src/pages/` composes route-level workflows.
-
-## Persistence model
-
-Every planned domain record references one central `eventId`:
-
-- `data/events.json`
-- `data/study-subjects.json`
-- `data/study-sessions.json`
-- `data/workouts.json`
-- `data/workout-templates.json`
-- `data/workout-schedules.json`
-- `data/workout-logs.json`
-- `data/internship-days.json`
-- `data/homework-tasks.json`
-
-Creating or editing a domain record updates its calendar event. Editing, completing, or deleting a linked calendar event propagates back to its domain record.
-
-Recurring gym schedules use the ISO weekday convention: `1` is Monday and `7` is Sunday. Scheduled workout IDs are derived from `templateId + dayOfWeek + date`, so generating the same date range repeatedly is idempotent. Only requested/default date windows are generated; the application does not create infinite future records.
-
-Gym activity sessions may include a valid `workoutId`. Completing a scheduled workout writes both a detailed workout log and a linked legacy Gym session, preserving compatibility with the existing activity/Pomodoro data.
-
-## Workout API
-
-- `GET|POST /api/workout-templates`
-- `PUT|DELETE /api/workout-templates/:id`
-- `GET /api/workout-schedule?start=YYYY-MM-DD&end=YYYY-MM-DD`
-- `GET|POST /api/workouts`
-- `PUT|DELETE /api/workouts/:id`
-- `POST /api/workouts/:id/complete`
-- `GET /api/workout-logs`
-- `GET /api/workouts/analytics?start=YYYY-MM-DD&end=YYYY-MM-DD`
-
-## Checks
+## Verification
 
 ```powershell
-npm --prefix frontend run lint
-npm --prefix frontend run build
+npm run check
+npm test
 ```
+
+The backend integration suites use `TEST_DATABASE_URL`, which should point to a disposable test database. The local development database can be reset only with an explicit, verified local `DATABASE_URL`; the reset preserves schema and `schema_migrations`.

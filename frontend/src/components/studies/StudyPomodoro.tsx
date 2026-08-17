@@ -25,7 +25,7 @@ function durationForMode(settings: PomodoroSettings, mode: SessionType) {
 
 export function StudyPomodoro() {
     const { subjects } = useProductivity();
-    const { sessions, activeSession, pomodoroSettings, error: sessionsError, createSession, updateSession, updatePomodoroSettings } = useSessions();
+    const { sessions, activeSession, pomodoroSettings, error: sessionsError, createSession, updateSession, cancelSession, updatePomodoroSettings } = useSessions();
     const studySession = activeSession?.activity === "study" ? activeSession : null;
     const completedFocusSessions = useMemo(() => sessions.filter((session) => session.activity === "study" && session.sessionType === "focus" && session.status === "completed"), [sessions]);
     const [subjectId, setSubjectId] = useState(subjects[0]?.id ?? "");
@@ -107,14 +107,14 @@ export function StudyPomodoro() {
         finally { setSaving(false); }
     }
 
-    async function reset() {
+    async function stop() {
         if (!studySession) { setMode("focus"); return; }
         setSaving(true); setError("");
         try {
-            await updateSession(studySession.id, { status: "cancelled", actualDuration: elapsedSeconds(studySession, Date.now()), activeStartedAt: null });
+            await cancelSession(studySession.id);
             finalizingSession.current = null;
             setMode("focus");
-        } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Could not reset Pomodoro"); }
+        } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Could not stop Pomodoro"); }
         finally { setSaving(false); }
     }
 
@@ -141,7 +141,7 @@ export function StudyPomodoro() {
             <strong className="pomodoro-clock">{formatTimer(remaining)}</strong>
             <div className="pomodoro-progress" aria-label={`${progress}% elapsed`}><span style={{ width: `${progress}%` }} /></div>
             <div className="pomodoro-cycle"><span>Pomodoro #{completedFocusSessions.length + 1}</span><span>{completedToday} completed today</span></div>
-            <div className="pomodoro-controls"><button className="primary-button" type="button" onClick={() => void start()} disabled={saving || studySession?.status === "running"}>{studySession?.status === "paused" ? "Resume" : "Start"}</button><button className="secondary-button" type="button" onClick={() => void pause()} disabled={saving || studySession?.status !== "running"}>Pause</button><button className="secondary-button" type="button" onClick={() => void reset()} disabled={saving}>Reset</button></div>
+            <div className="pomodoro-controls"><button className="primary-button" type="button" onClick={() => void start()} disabled={saving || studySession?.status === "running"}>{studySession?.status === "paused" ? "Resume" : "Start"}</button><button className="secondary-button" type="button" onClick={() => void pause()} disabled={saving || studySession?.status !== "running"}>Pause</button><button className="danger-button" type="button" onClick={() => void stop()} disabled={saving || !studySession}>Stop</button></div>
             {(error || sessionsError) && <p className="form-error">{error || sessionsError}</p>}
         </div>
     </section>;

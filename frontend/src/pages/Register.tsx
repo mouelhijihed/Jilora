@@ -1,0 +1,14 @@
+import { useState } from "react";
+import type { FormEvent } from "react";
+import { Link, Navigate, useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
+import "./Auth.css";
+
+export function Register() {
+    const { user, register } = useAuth(); const navigate = useNavigate();
+    const [form,setForm]=useState({firstName:"",lastName:"",username:"",email:"",password:"",confirmPassword:""});const[error,setError]=useState("");const[saving,setSaving]=useState(false);
+    if(user)return <Navigate to={user.onboardingCompleted?"/dashboard":"/onboarding"} replace/>;
+    async function submit(event:FormEvent){event.preventDefault();setSaving(true);setError("");try{await register(form);navigate("/onboarding",{replace:true});}catch(requestError){setError(requestError instanceof Error?requestError.message:"Could not create account");}finally{setSaving(false);}}
+    const field=(key:keyof typeof form)=>(event:React.ChangeEvent<HTMLInputElement>)=>setForm((current)=>({...current,[key]:event.target.value}));
+    return <main className="auth-page"><section className="auth-panel"><header className="auth-heading"><p className="eyebrow">Jilora</p><h1>Create account</h1><p>Your data will be private to this account.</p></header><form className="auth-form" onSubmit={submit}><div className="auth-grid"><label><span className="field-label">First name</span><input className="text-input" autoComplete="given-name" value={form.firstName} onChange={field("firstName")} required/></label><label><span className="field-label">Last name</span><input className="text-input" autoComplete="family-name" value={form.lastName} onChange={field("lastName")} required/></label></div><label><span className="field-label">Username</span><input className="text-input" minLength={3} maxLength={40} pattern="[A-Za-z0-9_]+" autoComplete="username" value={form.username} onChange={field("username")} required/></label><label><span className="field-label">Email</span><input className="text-input" type="email" autoComplete="email" value={form.email} onChange={field("email")} required/></label><label><span className="field-label">Password</span><input className="text-input" type="password" minLength={10} autoComplete="new-password" value={form.password} onChange={field("password")} required/></label><label><span className="field-label">Confirm password</span><input className="text-input" type="password" minLength={10} autoComplete="new-password" value={form.confirmPassword} onChange={field("confirmPassword")} required/></label>{error&&<p className="form-error" role="alert">{error}</p>}<div className="auth-actions"><Link className="auth-link" to="/login">Already have an account?</Link><button className="primary-button" disabled={saving} type="submit">{saving?"Creating...":"Create account"}</button></div></form></section></main>;
+}

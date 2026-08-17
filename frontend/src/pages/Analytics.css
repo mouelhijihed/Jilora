@@ -5,6 +5,12 @@
 .analytics-filters .select-input { min-width: 150px; }
 .analytics-filters .text-input { width: 145px; }
 
+.analytics-page .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); margin-bottom: var(--space-5); overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+.analytics-page .metric-card { min-width: 0; padding: 15px 16px; border-right: 1px solid var(--border-subtle); }
+.analytics-page .metric-card:last-child { border-right: 0; }
+.analytics-page .metric-card span { display: block; color: var(--text-muted); font-size: 11px; }
+.analytics-page .metric-card strong { display: block; margin-top: 6px; color: var(--text-primary); font-size: 21px; line-height: 1.2; }
+
 .study-analytics, .gym-analytics { margin-bottom: var(--space-5); padding: 19px 20px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
 .study-analytics { border-top: 2px solid var(--study); }
 .gym-analytics { border-top: 2px solid var(--gym); }
@@ -44,6 +50,9 @@
 @media (max-width: 600px) {
     .analytics-filters { width: 100%; align-items: stretch; flex-direction: column; }
     .analytics-filters .select-input, .analytics-filters .text-input { width: 100%; }
+    .analytics-page .metric-grid { grid-template-columns: 1fr; }
+    .analytics-page .metric-card { border-right: 0; border-bottom: 1px solid var(--border-subtle); }
+    .analytics-page .metric-card:last-child { border-bottom: 0; }
     .chart-card { padding: 14px; }
     .chart-heading { align-items: flex-start; flex-direction: column; }
     .chart-frame { height: 270px; }

@@ -4,7 +4,7 @@
 .category-legend { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .category-legend span { padding: 3px 7px; border: 1px solid var(--border); border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: capitalize; }
 .legend-study { border-color: #2f5c48 !important; background: var(--study-muted); color: var(--study); }
-.legend-internship { border-color: #304c70 !important; background: var(--internship-muted); color: var(--internship); }
+.legend-job { border-color: #304c70 !important; background: var(--job-muted); color: var(--job); }
 .legend-gym { border-color: #5b4328 !important; background: var(--gym-muted); color: var(--gym); }
 .legend-homework { border-color: #63323a !important; background: var(--homework-muted); color: var(--homework); }
 .legend-general { border-color: #484259 !important; background: var(--general-muted); color: var(--general); }
@@ -33,7 +33,7 @@
 .calendar-event.completed { opacity: .55; }
 .calendar-event.completed .event-title { text-decoration: line-through; }
 .event-study { border-color: #315a49; background: var(--study-muted); color: var(--study); }
-.event-internship { border-color: #304d72; background: var(--internship-muted); color: var(--internship); }
+.event-job { border-color: #304d72; background: var(--job-muted); color: var(--job); }
 .event-gym { border-color: #5b442b; background: var(--gym-muted); color: var(--gym); }
 .event-homework { border-color: #64323a; background: var(--homework-muted); color: var(--homework); }
 .event-general { border-color: #4a455c; background: var(--general-muted); color: var(--general); }

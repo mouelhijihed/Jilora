@@ -8,11 +8,17 @@
 .sidebar-link.active { border-left-color: var(--accent); background: var(--accent-muted); color: #dce5ff; }
 .sidebar-mark { display: grid; width: 20px; height: 20px; place-items: center; color: inherit; }
 .sidebar-mark svg { width: 17px; height: 17px; }
-.sidebar-footer { margin: auto 9px 5px; color: var(--text-muted); font-size: 11px; line-height: 1.5; }
+.sidebar-account { display: grid; gap: 3px; min-width: 0; margin: auto 5px 0; color: var(--text-secondary); font-size: 11px; }
+.sidebar-account strong, .sidebar-account > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar-account strong { color: var(--text-primary); font-size: 12px; }
+.sidebar-logout { display: flex; align-items: center; gap: 8px; margin-top: 9px; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary); }
+.sidebar-logout:hover { background: var(--surface-hover); color: var(--text-primary); }
 @media (max-width: 700px) {
     .sidebar { width: 64px; padding: 14px 8px; }
     .sidebar-brand { justify-content: center; padding: 7px 0 24px; }
-    .sidebar-brand > span:last-child, .sidebar-link > span:last-child, .sidebar-footer { display: none; }
+    .sidebar-brand > span:last-child, .sidebar-link > span:last-child, .sidebar-account strong, .sidebar-account > span, .sidebar-logout span { display: none; }
+    .sidebar-account { margin-inline: 0; }
+    .sidebar-logout { justify-content: center; padding: 8px 5px; }
     .sidebar-link { justify-content: center; padding: 8px 5px; border-left: 0; border-bottom: 2px solid transparent; }
     .sidebar-link.active { border-bottom-color: var(--accent); border-left-color: transparent; }
 }
