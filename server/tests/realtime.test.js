@@ -8,9 +8,11 @@ if (!process.env.TEST_DATABASE_URL) {
 } else {
     test("authenticated Socket.IO targeting and logout", async (context) => {
         process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
+        process.env.NODE_ENV = "test";
         process.env.SESSION_SECRET = crypto.randomBytes(32).toString("hex");
         process.env.FRONTEND_URL = "http://localhost";
         process.env.SESSION_COOKIE_SECURE = "false";
+        process.env.SESSION_COOKIE_SAME_SITE = "lax";
 
         const { migrate } = require("../db/migrate");
         await migrate();

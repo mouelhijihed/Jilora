@@ -7,8 +7,11 @@ if (!process.env.TEST_DATABASE_URL) {
 } else {
     test("partner system security, privacy, and persistence", async () => {
         process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
+        process.env.NODE_ENV = "test";
         process.env.SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
         process.env.CLIENT_ORIGIN = "http://localhost";
+        process.env.SESSION_COOKIE_SECURE = "false";
+        process.env.SESSION_COOKIE_SAME_SITE = "lax";
 
         const { migrate } = require("../db/migrate");
         await migrate();

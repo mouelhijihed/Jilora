@@ -56,7 +56,8 @@ Required variables:
 - `FRONTEND_URL` (the exact HTTPS frontend origin; comma-separated origins are supported)
 - `DATABASE_SSL=true` when required by the PostgreSQL provider
 - `SESSION_COOKIE_SECURE=true`
-- `SESSION_COOKIE_SAME_SITE=lax` for same-site subdomains, or `none` for truly cross-site frontend/backend origins
+- `SESSION_COOKIE_SAME_SITE=none` when the frontend and backend are on different sites (including Vercel + Render)
+- `SESSION_COOKIE_PARTITIONED=true` for cross-site cookie isolation in browsers that support CHIPS
 
 Optional variables are documented in `.env.example`.
 
@@ -80,6 +81,27 @@ Only `VITE_` variables are available to browser code. Never put `DATABASE_URL`, 
 ### CORS, Cookies, and Socket.IO
 
 `FRONTEND_URL` controls both Express CORS and Socket.IO CORS. Wildcard origins are not allowed because authenticated cookies are used. The frontend sends credentials on REST and Socket.IO connections. Socket.IO authenticates through the same PostgreSQL-backed HTTP session cookie and never accepts a client-supplied user ID.
+
+For the current Jilora deployment, configure Render with:
+
+```dotenv
+NODE_ENV=production
+FRONTEND_URL=https://jilora.vercel.app
+SESSION_COOKIE_SECURE=true
+SESSION_COOKIE_SAME_SITE=none
+SESSION_COOKIE_PARTITIONED=true
+```
+
+Leave `SESSION_COOKIE_DOMAIN` unset. The session cookie must remain host-only for `jilora.onrender.com`; neither `vercel.app` nor `onrender.com` is a valid shared cookie domain. Production now defaults to `Secure`, `SameSite=None`, and `Partitioned`, while local development continues to default to `Secure=false`, `SameSite=Lax`, and no partitioning.
+
+Configure Vercel with:
+
+```dotenv
+VITE_API_URL=https://jilora.onrender.com
+VITE_SOCKET_URL=https://jilora.onrender.com
+```
+
+After changing either host's variables, redeploy that service. A successful login response must include a host-only `pd.sid` cookie with `HttpOnly; Secure; SameSite=None; Partitioned`; subsequent `/api/auth/me`, `/api/auth/heartbeat`, and Socket.IO handshake requests must carry that cookie.
 
 REST mutations commit to PostgreSQL first, then emit a targeted `state:changed` event to the authenticated user and server-derived partner/invitation recipients. The event contains no private application data. Clients refetch REST state after events and reconnections.
 

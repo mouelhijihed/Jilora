@@ -3,7 +3,7 @@ const assert=require("node:assert/strict");
 const crypto=require("crypto");
 
 if(!process.env.TEST_DATABASE_URL){test("authenticated persistence and ownership",{skip:"TEST_DATABASE_URL is not configured"},()=>{});}else test("authenticated persistence and ownership",async(t)=>{
-    process.env.DATABASE_URL=process.env.TEST_DATABASE_URL;process.env.SESSION_SECRET=process.env.SESSION_SECRET||crypto.randomBytes(32).toString("hex");process.env.CLIENT_ORIGIN="http://localhost";
+    process.env.DATABASE_URL=process.env.TEST_DATABASE_URL;process.env.NODE_ENV="test";process.env.SESSION_SECRET=process.env.SESSION_SECRET||crypto.randomBytes(32).toString("hex");process.env.CLIENT_ORIGIN="http://localhost";process.env.SESSION_COOKIE_SECURE="false";process.env.SESSION_COOKIE_SAME_SITE="lax";
     const{migrate}=require("../db/migrate");await migrate();const{getPool,closePool}=require("../db/pool");await getPool().query("TRUNCATE users CASCADE");const app=require("../../app");const server=app.listen(0);const base=`http://127.0.0.1:${server.address().port}`;t.after(async()=>{await new Promise((resolve)=>server.close(resolve));await closePool();});
     async function client(){let cookie="";return async(path,options={})=>{const response=await fetch(base+path,{...options,headers:{"content-type":"application/json",cookie,...options.headers}});const setCookie=response.headers.get("set-cookie");if(setCookie)cookie=setCookie.split(";")[0];const body=response.status===204?null:await response.json();return{status:response.status,body};};}
     const a=await client(),b=await client();
