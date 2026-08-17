@@ -6,6 +6,7 @@ const cors=require("cors");
 const helmet=require("helmet");
 const session=require("express-session");
 const {getPool,closePool}=require("./server/db/pool");
+const {migrate}=require("./server/db/migrate");
 const {PostgresSessionStore}=require("./server/db/sessionStore");
 const {frontendOrigins,sessionCookieOptions}=require("./server/config");
 const {attachSocketServer,closeSocketServer,realtimeMutationMiddleware}=require("./server/realtime/socketServer");
@@ -67,7 +68,18 @@ function createHttpRuntime(){const httpServer=createServer(app);const io=attachS
 
 if(require.main===module){
     const{httpServer}=createHttpRuntime();
-    httpServer.listen(port,()=>console.log(`Jilora server listening on port ${port}`));
+    const start=async()=>{
+        try{
+            await migrate();
+            httpServer.listen(port,()=>console.log(`Jilora server listening on port ${port}`));
+        }catch(error){
+            console.error("Database migration failed",{message:error.message});
+            await closeSocketServer();
+            await closePool();
+            process.exitCode=1;
+        }
+    };
+    void start();
     let shuttingDown=false;
     const shutdown=async(signal)=>{if(shuttingDown)return;shuttingDown=true;console.log(`${signal} received; shutting down`);const force=setTimeout(()=>process.exit(1),10000);force.unref();try{await closeSocketServer();if(httpServer.listening)await new Promise((resolve)=>httpServer.close(resolve));await closePool();clearTimeout(force);process.exit(0);}catch(error){console.error("Graceful shutdown failed",{message:error.message});process.exit(1);}};
     process.on("SIGINT",()=>shutdown("SIGINT"));

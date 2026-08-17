@@ -9,6 +9,7 @@ async function migrate() {
     const client = await getPool().connect();
     try {
         await client.query("BEGIN");
+        await client.query("SELECT pg_advisory_xact_lock(hashtext('jilora:schema-migrations'))");
         await client.query("CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
         for (const name of files) {
             const exists = await client.query("SELECT 1 FROM schema_migrations WHERE name = $1", [name]);
