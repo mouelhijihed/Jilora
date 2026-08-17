@@ -82,7 +82,11 @@ const schemas = {
     jobInput,
     eventInput: z.object({
         title: shortText(120), type: z.enum(["gym", "study", "homework", "job", "general"]), date, startTime: time, endTime: time,
-        completed: z.boolean().default(false), notes: optionalText(2000), metadata: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).default({}),
+        completed: z.boolean().default(false), notes: optionalText(2000),
+        activityDetails: z.object({
+            workoutType: workoutType.optional(), subjectId: id.nullable().optional(), subject: z.string().trim().max(120).optional(), priority: priority.optional(),
+        }).strict().default({}),
+        metadata: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).default({}),
     }).strict(),
     completed: z.object({ completed: z.boolean() }).strict(),
     studySessionInput: z.object({ subjectId: id, ...scheduleInput.shape, actualMinutes: z.number().int().min(0).max(1440), completed: z.boolean(), notes: optionalText(2000) }).strict(),
