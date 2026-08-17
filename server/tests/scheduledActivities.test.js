@@ -16,6 +16,8 @@ if (!process.env.TEST_DATABASE_URL) {
     await migrate();
     const { getPool, closePool } = require("../db/pool");
     await getPool().query("TRUNCATE users CASCADE");
+    const subjectColumn = await getPool().query("SELECT is_nullable FROM information_schema.columns WHERE table_schema='public' AND table_name='study_sessions' AND column_name='subject_id'");
+    assert.equal(subjectColumn.rows[0].is_nullable, "NO");
     const app = require("../../app");
     const server = app.listen(0);
     const base = `http://127.0.0.1:${server.address().port}`;
@@ -42,6 +44,9 @@ if (!process.env.TEST_DATABASE_URL) {
     assert.equal((await register(a, "A")).status, 201);
     assert.equal((await a("/api/auth/onboarding", { method: "POST", body: JSON.stringify({ preferences: { student: true, gym: true, partTimeJob: true }, subjects: [{ name: "Algorithms", targetWeeklyHours: 4, targetMonthlyHours: 16, priority: "high", color: "#72c59b" }], workoutTemplate: null, job: { jobName: "Assistant", company: "Example", hourlyTarget: 20 } }) })).status, 200);
     const subjectId = (await a("/api/productivity")).body.subjects[0].id;
+    assert.equal((await register(b, "B")).status, 201);
+    assert.equal((await b("/api/auth/onboarding", { method: "POST", body: JSON.stringify({ preferences: { student: true, gym: false, partTimeJob: false }, subjects: [{ name: "Other", targetWeeklyHours: 1, targetMonthlyHours: 4, priority: "medium", color: "#72c59b" }], workoutTemplate: null, job: null }) })).status, 200);
+    const otherSubjectId = (await b("/api/productivity")).body.subjects[0].id;
 
     const plannerWorkout = await a("/api/events", { method: "POST", body: JSON.stringify({ title: "Planner Gym", type: "gym", date: tomorrow, startTime: "18:00", endTime: "19:00", completed: false, notes: "Intervals", activityDetails: { workoutType: "Running" } }) });
     assert.equal(plannerWorkout.status, 201, JSON.stringify(plannerWorkout.body));
@@ -60,10 +65,28 @@ if (!process.env.TEST_DATABASE_URL) {
     const homeworkLink = await getPool().query("SELECT subject_id FROM homework WHERE event_id=$1", [plannerHomework.body.id]);
     assert.equal(homeworkLink.rows[0].subject_id, null);
 
+    const calendarCountBeforeInvalidStudy = Number((await getPool().query("SELECT COUNT(*) count FROM calendar_events")).rows[0].count);
+    const missingSubjectStudy = await a("/api/events", { method: "POST", body: JSON.stringify({ title: "Missing Subject Study", type: "study", date: tomorrow, startTime: "09:00", endTime: "10:00", completed: false, notes: "", activityDetails: {} }) });
+    assert.equal(missingSubjectStudy.status, 400, JSON.stringify(missingSubjectStudy.body));
+    const foreignSubjectStudy = await a("/api/events", { method: "POST", body: JSON.stringify({ title: "Foreign Subject Study", type: "study", date: tomorrow, startTime: "09:00", endTime: "10:00", completed: false, notes: "", activityDetails: { subjectId: otherSubjectId } }) });
+    assert.equal(foreignSubjectStudy.status, 400, JSON.stringify(foreignSubjectStudy.body));
+    assert.equal(Number((await getPool().query("SELECT COUNT(*) count FROM calendar_events")).rows[0].count), calendarCountBeforeInvalidStudy);
+
     const plannerStudy = await a("/api/events", { method: "POST", body: JSON.stringify({ title: "Planner Study", type: "study", date: tomorrow, startTime: "10:00", endTime: "11:00", completed: false, notes: "Review", activityDetails: { subjectId } }) });
     assert.equal(plannerStudy.status, 201, JSON.stringify(plannerStudy.body));
     productivity = await a("/api/productivity");
     assert.equal(productivity.body.studySessions.some((item) => item.eventId === plannerStudy.body.id && item.subjectId === subjectId), true);
+    const updatedPlannerStudy = await a(`/api/events/${plannerStudy.body.id}`, { method: "PUT", body: JSON.stringify({ title: "Planner Study Updated", type: "study", date: dayAfter, startTime: "11:00", endTime: "12:00", completed: false, notes: "Updated review", activityDetails: { subjectId } }) });
+    assert.equal(updatedPlannerStudy.status, 200, JSON.stringify(updatedPlannerStudy.body));
+    productivity = await a("/api/productivity");
+    assert.equal(productivity.body.studySessions.some((item) => item.eventId === plannerStudy.body.id && item.date === dayAfter), true);
+
+    const sectionStudy = await a("/api/study-sessions", { method: "POST", body: JSON.stringify({ subjectId, date: tomorrow, startTime: "13:00", endTime: "14:00", actualMinutes: 0, completed: false, notes: "Section study" }) });
+    assert.equal(sectionStudy.status, 201, JSON.stringify(sectionStudy.body));
+    assert.equal((await a(`/api/study-sessions/${sectionStudy.body.id}`, { method: "PUT", body: JSON.stringify({ subjectId, date: dayAfter, startTime: "14:00", endTime: "15:00", actualMinutes: 45, completed: true, notes: "Updated section study" }) })).status, 200);
+    assert.equal((await a(`/api/events?start=${dayAfter}&end=${dayAfter}`)).body.some((item) => item.id === sectionStudy.body.eventId && item.completed), true);
+    assert.equal((await a(`/api/study-sessions/${sectionStudy.body.id}`, { method: "DELETE" })).status, 204);
+    assert.equal((await a(`/api/events?start=${tomorrow}&end=${dayAfter}`)).body.some((item) => item.id === sectionStudy.body.eventId), false);
 
     const updatedWorkout = await a(`/api/events/${plannerWorkout.body.id}`, { method: "PUT", body: JSON.stringify({ title: "Planner Gym Updated", type: "gym", date: dayAfter, startTime: "19:00", endTime: "20:30", completed: false, notes: "Updated", activityDetails: { workoutType: "Boxing" } }) });
     assert.equal(updatedWorkout.status, 200, JSON.stringify(updatedWorkout.body));
@@ -110,13 +133,13 @@ if (!process.env.TEST_DATABASE_URL) {
     assert.equal(productivity.body.homeworkTasks.some((item) => item.eventId === plannerHomework.body.id), false);
     assert.equal((await a(`/api/events?start=${tomorrow}&end=${dayAfter}`)).body.some((item) => item.id === sectionWorkout.body.eventId || item.id === sectionHomework.body.eventId), false);
 
-    assert.equal((await register(b, "B")).status, 201);
-    await b("/api/auth/onboarding", { method: "POST", body: JSON.stringify({ preferences: { student: true, gym: false, partTimeJob: false }, subjects: [{ name: "Other", targetWeeklyHours: 1, targetMonthlyHours: 4, priority: "medium", color: "#72c59b" }], workoutTemplate: null, job: null }) });
     assert.equal((await b(`/api/events/${plannerWorkout.body.id}`, { method: "PUT", body: JSON.stringify({ title: "IDOR", type: "gym", date: tomorrow, startTime: "12:00", endTime: "13:00", completed: false, notes: "", activityDetails: { workoutType: "Other" } }) })).status, 404);
     assert.equal((await b(`/api/events/${plannerWorkout.body.id}`, { method: "DELETE" })).status, 404);
     assert.equal((await b(`/api/workouts/${plannerWorkoutRecord.id}`, { method: "DELETE" })).status, 404);
     assert.equal((await b("/api/productivity")).body.workouts.length, 0);
     assert.equal((await a(`/api/events/${plannerWorkout.body.id}`, { method: "DELETE" })).status, 204);
+    assert.equal((await a(`/api/events/${plannerStudy.body.id}`, { method: "DELETE" })).status, 204);
     productivity = await a("/api/productivity");
     assert.equal(productivity.body.workouts.some((item) => item.eventId === plannerWorkout.body.id), false);
+    assert.equal(productivity.body.studySessions.some((item) => item.eventId === plannerStudy.body.id), false);
 });

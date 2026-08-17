@@ -10,7 +10,7 @@ import "./Planner.css";
 
 export function Planner() {
     const { events, loading, error, createEvent, updateEvent, deleteEvent, refreshEvents } = usePlanner();
-    const { refreshData } = useProductivity();
+    const { refreshData, subjects, partTimeJob } = useProductivity();
     const [view, setView] = useState<CalendarView>("month");
     const [currentDate, setCurrentDate] = useState(new Date());
     const [editorOpen, setEditorOpen] = useState(false);
@@ -38,7 +38,10 @@ export function Planner() {
         if (selectedEvent) {
             await updateEvent(selectedEvent.id, input);
             await refreshData();
-        } else await createEvent(input);
+        } else {
+            await createEvent(input);
+            await refreshData();
+        }
     }
 
     async function removeEvent() {
@@ -60,7 +63,7 @@ export function Planner() {
             <CalendarToolbar label={formatPeriodLabel(currentDate, view)} view={view} onViewChange={setView} onPrevious={() => navigate(-1)} onNext={() => navigate(1)} onToday={() => setCurrentDate(new Date())} onCreate={() => openCreate()} />
             {loading ? <div className="calendar-loading">Loading planner...</div> : <PlannerCalendar events={events} currentDate={currentDate} view={view} onSelectEvent={(event) => { setSelectedEvent(event); setEditorOpen(true); }} onCreateEvent={openCreate} />}
 
-            {editorOpen && <EventEditor event={selectedEvent} initialDate={initialDate} onClose={() => setEditorOpen(false)} onSave={saveEvent} onDelete={selectedEvent ? removeEvent : null} />}
+            {editorOpen && <EventEditor event={selectedEvent} initialDate={initialDate} subjects={subjects} hasPartTimeJob={Boolean(partTimeJob)} onClose={() => setEditorOpen(false)} onSave={saveEvent} onDelete={selectedEvent ? removeEvent : null} />}
         </main>
     );
 }

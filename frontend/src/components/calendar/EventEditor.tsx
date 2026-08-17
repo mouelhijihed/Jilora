@@ -4,6 +4,7 @@ import { FiX } from "react-icons/fi";
 import { calculateDuration, formatMinutes, toDateKey } from "../../utils/date";
 import { eventTypes } from "../../types/planner";
 import type { CalendarEvent, CalendarEventInput, CalendarEventType } from "../../types/planner";
+import type { Priority, StudySubject, WorkoutType } from "../../types/productivity";
 import "../forms/ModalForm.css";
 
 type EventEditorProps = {
@@ -12,9 +13,13 @@ type EventEditorProps = {
     onClose: () => void;
     onSave: (input: CalendarEventInput) => Promise<void>;
     onDelete: (() => Promise<void>) | null;
+    subjects: StudySubject[];
+    hasPartTimeJob: boolean;
 };
 
-export function EventEditor({ event, initialDate, onClose, onSave, onDelete }: EventEditorProps) {
+const workoutTypes: WorkoutType[] = ["Strength", "Push", "Pull", "Legs", "Upper", "Lower", "Full Body", "Cardio", "Running", "Swimming", "Cycling", "Boxing", "Taekwondo", "Football", "Calisthenics", "Weightlifting", "Other", "Rest"];
+
+export function EventEditor({ event, initialDate, onClose, onSave, onDelete, subjects, hasPartTimeJob }: EventEditorProps) {
     const [title, setTitle] = useState("");
     const [type, setType] = useState<CalendarEventType>("general");
     const [date, setDate] = useState(initialDate || toDateKey(new Date()));
@@ -22,6 +27,10 @@ export function EventEditor({ event, initialDate, onClose, onSave, onDelete }: E
     const [endTime, setEndTime] = useState("10:00");
     const [notes, setNotes] = useState("");
     const [completed, setCompleted] = useState(false);
+    const [workoutType, setWorkoutType] = useState<WorkoutType>("Other");
+    const [subjectId, setSubjectId] = useState("");
+    const [homeworkSubject, setHomeworkSubject] = useState("");
+    const [priority, setPriority] = useState<Priority>("medium");
     const [error, setError] = useState("");
     const [saving, setSaving] = useState(false);
 
@@ -33,6 +42,11 @@ export function EventEditor({ event, initialDate, onClose, onSave, onDelete }: E
         setEndTime(event?.endTime ?? "10:00");
         setNotes(event?.notes ?? "");
         setCompleted(event?.completed ?? false);
+        const metadata = event?.metadata ?? {};
+        setWorkoutType((metadata.workoutType as WorkoutType | undefined) ?? "Other");
+        setSubjectId(typeof metadata.subjectId === "string" ? metadata.subjectId : "");
+        setHomeworkSubject(typeof metadata.subject === "string" ? metadata.subject : "");
+        setPriority((metadata.priority as Priority | undefined) ?? "medium");
         setError("");
     }, [event, initialDate]);
 
@@ -43,6 +57,8 @@ export function EventEditor({ event, initialDate, onClose, onSave, onDelete }: E
         formEvent.preventDefault();
         if (!title.trim()) return setError("Enter an event title");
         if (duration <= 0) return setError("End time must be later than start time");
+        if (type === "study" && !subjectId) return setError("Choose a subject for this Study event");
+        if (type === "job" && !hasPartTimeJob) return setError("Configure your part-time job first");
         if (!event) {
             const startsAt = new Date(`${date}T${startTime}:00`);
             if (Number.isNaN(startsAt.getTime())) return setError("Enter a valid event date and time");
@@ -51,7 +67,11 @@ export function EventEditor({ event, initialDate, onClose, onSave, onDelete }: E
         setSaving(true);
         setError("");
         try {
-            await onSave({ title: title.trim(), type, date, startTime, endTime, completed, notes: notes.trim(), metadata: event?.metadata ?? {} });
+            await onSave({ title: title.trim(), type, date, startTime, endTime, completed, notes: notes.trim(), activityDetails: {
+                ...(type === "gym" ? { workoutType } : {}),
+                ...(type === "study" ? { subjectId } : {}),
+                ...(type === "homework" ? { subject: homeworkSubject.trim(), priority } : {}),
+            }, metadata: event?.metadata ?? {} });
             onClose();
         } catch (requestError) {
             setError(requestError instanceof Error ? requestError.message : "Could not save event");
@@ -90,6 +110,10 @@ export function EventEditor({ event, initialDate, onClose, onSave, onDelete }: E
                         <label><span className="field-label">Start time</span><input className="text-input" type="time" value={startTime} onChange={(inputEvent) => setStartTime(inputEvent.target.value)} required /></label>
                         <label><span className="field-label">End time</span><input className="text-input" type="time" value={endTime} onChange={(inputEvent) => setEndTime(inputEvent.target.value)} required /></label>
                     </div>
+
+                    {type === "gym" && <label><span className="field-label">Workout type</span><select className="select-input" value={workoutType} onChange={(inputEvent) => setWorkoutType(inputEvent.target.value as WorkoutType)}>{workoutTypes.map((item) => <option value={item} key={item}>{item}</option>)}</select></label>}
+                    {type === "study" && <label><span className="field-label">Subject *</span><select className="select-input" value={subjectId} onChange={(inputEvent) => setSubjectId(inputEvent.target.value)} required><option value="">{subjects.length ? "Select a subject" : "Add a subject in Studies first"}</option>{subjects.map((subject) => <option value={subject.id} key={subject.id}>{subject.name}</option>)}</select></label>}
+                    {type === "homework" && <div className="event-form-grid"><label><span className="field-label">Subject</span><input className="text-input" value={homeworkSubject} onChange={(inputEvent) => setHomeworkSubject(inputEvent.target.value)} placeholder="Optional subject" maxLength={120} /></label><label><span className="field-label">Priority</span><select className="select-input" value={priority} onChange={(inputEvent) => setPriority(inputEvent.target.value as Priority)}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select></label></div>}
 
                     <div className="duration-preview"><span>Planned duration</span><strong>{formatMinutes(duration)}</strong></div>
                     {linkedEntity && <p className="linked-event-note">This event is synchronized with its {String(linkedEntity).replace(/([A-Z])/g, " $1").toLowerCase()} record.</p>}

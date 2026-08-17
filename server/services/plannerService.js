@@ -36,7 +36,7 @@ async function insertEvent(client, userId, input, id = crypto.randomUUID(), meta
 
 async function resolveSubject(client, userId, details = {}) {
     if (details.subjectId) {
-        const subject = await client.query("SELECT id,name FROM subjects WHERE id=$1 AND user_id=$2", [details.subjectId,userId]);
+        const subject = await client.query("SELECT id,name FROM subjects WHERE id=$1 AND user_id=$2 FOR KEY SHARE", [details.subjectId,userId]);
         if (!subject.rowCount) fail("Choose a valid subject");
         return subject.rows[0];
     }
@@ -47,7 +47,7 @@ async function resolveSubject(client, userId, details = {}) {
     return null;
 }
 
-async function attachTypedActivity(client, userId, event, details = {}) {
+async function attachTypedActivity(client, userId, event, details = {}, validated = {}) {
     if (event.type === "general") return event;
     const entityId = crypto.randomUUID();
     let metadata;
@@ -64,10 +64,11 @@ async function attachTypedActivity(client, userId, event, details = {}) {
             VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`, [entityId,userId,event.id,subject?.id||null,subjectName,event.title,event.notes,event.date,event.endTime,details.priority||"medium",event.duration,event.completed?"completed":"todo",event.completed?event.date:null,event.completed?new Date():null]);
         metadata = { entityType:"homeworkTask", entityId, ...(subject?.id?{subjectId:subject.id}:{}), subject:subjectName, priority:details.priority||"medium" };
     } else if (event.type === "study") {
-        const subject = await resolveSubject(client,userId,details);
+        const subject = validated.studySubject || await resolveSubject(client,userId,details);
+        if (!subject) fail("Subject is required for Study events");
         await client.query(`INSERT INTO study_sessions(id,user_id,event_id,subject_id,session_date,start_time,end_time,planned_minutes,actual_minutes,completed,completed_at,notes)
-            VALUES($1,$2,$3,$4,$5,$6,$7,$8,0,$9,$10,$11)`, [entityId,userId,event.id,subject?.id||null,event.date,event.startTime,event.endTime,event.duration,event.completed,event.completed?new Date():null,event.notes]);
-        metadata = { entityType:"studySession", entityId, ...(subject?.id?{subjectId:subject.id}:{}) };
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8,0,$9,$10,$11)`, [entityId,userId,event.id,subject.id,event.date,event.startTime,event.endTime,event.duration,event.completed,event.completed?new Date():null,event.notes]);
+        metadata = { entityType:"studySession", entityId, subjectId:subject.id };
     } else if (event.type === "job") {
         const job = await client.query("SELECT id FROM part_time_jobs WHERE user_id=$1", [userId]);
         if (!job.rowCount) fail("Configure your part-time job first",409);
@@ -82,8 +83,10 @@ async function attachTypedActivity(client, userId, event, details = {}) {
 async function createEvent(userId, input) {
     validateNewEventTime(input);
     return withTransaction(async (client) => {
+        const studySubject = input.type === "study" ? await resolveSubject(client,userId,input.activityDetails) : null;
+        if (input.type === "study" && !studySubject) fail("Subject is required for Study events");
         const event = await insertEvent(client,userId,input,undefined,{});
-        return attachTypedActivity(client,userId,event,input.activityDetails);
+        return attachTypedActivity(client,userId,event,input.activityDetails,{studySubject});
     });
 }
 
@@ -106,9 +109,9 @@ async function updateLinkedRecord(client, userId, previous, next, details = {}, 
     if (entityType === "studySession") {
         const hasSubject = Object.prototype.hasOwnProperty.call(details,"subjectId");
         const subject = details.subjectId ? await resolveSubject(client,userId,details) : null;
+        if (hasSubject && !subject) fail("Subject is required for Study events");
         await client.query(`UPDATE study_sessions SET subject_id=CASE WHEN $3 THEN $4 ELSE subject_id END,session_date=$5,start_time=$6,end_time=$7,planned_minutes=$8,completed=$9,completed_at=CASE WHEN $9 THEN COALESCE(completed_at,NOW()) ELSE NULL END,notes=$10,updated_at=NOW() WHERE id=$1 AND user_id=$2`, [entityId,userId,hasSubject,subject?.id||null,next.date,next.startTime,next.endTime,next.duration,next.completed,next.notes]);
         if (subject) previous.metadata.subjectId=subject.id;
-        else if (hasSubject) delete previous.metadata.subjectId;
     } else if (entityType === "homeworkTask") {
         const hasSubject = Object.prototype.hasOwnProperty.call(details,"subjectId") || Object.prototype.hasOwnProperty.call(details,"subject");
         const subject = details.subjectId || details.subject ? await resolveSubject(client,userId,details) : null;

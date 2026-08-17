@@ -60,7 +60,7 @@ export function ProductivityProvider({ children }: { children: ReactNode }) {
     }, []);
 
     useEffect(() => { void refreshData(); }, [refreshData]);
-    useEffect(() => subscribeRealtime((change) => { if (["all", "productivity", "workouts"].includes(change.scope)) void refreshData(); }), [refreshData]);
+    useEffect(() => subscribeRealtime((change) => { if (["all", "planner", "productivity", "workouts"].includes(change.scope)) void refreshData(); }), [refreshData]);
 
     const syncPlanner = useCallback(() => refreshEvents(), [refreshEvents]);
     const ensureWorkoutSchedule = useCallback(async (start: string, end: string) => {

@@ -1,5 +1,3 @@
-ALTER TABLE study_sessions ALTER COLUMN subject_id DROP NOT NULL;
-
 INSERT INTO scheduled_workouts(
     id,user_id,event_id,source,name,workout_type,workout_date,start_time,end_time,
     planned_minutes,completed,status,completed_at,notes
@@ -39,7 +37,12 @@ SELECT
     e.id,e.user_id,e.id,s.id,e.event_date,e.start_time,e.end_time,e.duration_minutes,
     0,e.completed,CASE WHEN e.completed THEN e.updated_at ELSE NULL END,e.notes
 FROM calendar_events e
-LEFT JOIN subjects s ON s.user_id=e.user_id AND s.id::text=e.metadata->>'subjectId'
+JOIN subjects s ON s.user_id=e.user_id AND s.id::text=e.metadata->>'subjectId'
+WHERE e.type='study'
+  AND NOT EXISTS (SELECT 1 FROM study_sessions ss WHERE ss.event_id=e.id);
+
+UPDATE calendar_events e
+SET type='general', metadata=e.metadata - 'entityType' - 'entityId' - 'subjectId', updated_at=NOW()
 WHERE e.type='study'
   AND NOT EXISTS (SELECT 1 FROM study_sessions ss WHERE ss.event_id=e.id);
 

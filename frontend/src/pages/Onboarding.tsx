@@ -3,15 +3,93 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { toDateKey } from "../utils/date";
 import type { OnboardingInput, UserPreferences } from "../types/auth";
+import type { WorkoutType } from "../types/productivity";
 import "./Auth.css";
 
-const dayNames=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-type DayDraft={enabled:boolean;workoutName:string;workoutType:"Push"|"Pull"|"Legs"|"Upper"|"Lower"|"Full Body"|"Cardio"|"Rest";startTime:string;endTime:string};
-export function Onboarding(){
-    const{user,completeOnboarding}=useAuth();const navigate=useNavigate();const[step,setStep]=useState(1);const[prefs,setPrefs]=useState<UserPreferences>({student:true,gym:false,partTimeJob:false});const[subjects,setSubjects]=useState(["Algorithms"]);const[job,setJob]=useState({jobName:"",company:"",hourlyTarget:""});const[days,setDays]=useState<DayDraft[]>(dayNames.map((_,index)=>({enabled:[0,2,4].includes(index),workoutName:["Push","Pull","Legs"][Math.min(index/2,2)]||"Workout",workoutType:(["Push","Pull","Legs"][Math.min(Math.floor(index/2),2)]||"Full Body") as DayDraft["workoutType"],startTime:"18:00",endTime:"19:00"})));const[error,setError]=useState("");const[saving,setSaving]=useState(false);
-    const selected=useMemo(()=>prefs.student||prefs.gym||prefs.partTimeJob,[prefs]);
-    if(!user)return <Navigate to="/login" replace/>;if(user.onboardingCompleted)return <Navigate to="/dashboard" replace/>;
-    const toggle=(key:keyof UserPreferences)=>setPrefs((current)=>({...current,[key]:!current[key]}));
-    async function finish(){setError("");if(!selected){setError("Select at least one feature");return;}const payload:OnboardingInput={preferences:prefs,subjects:prefs.student?subjects.filter((name)=>name.trim()).map((name)=>({name:name.trim(),targetWeeklyHours:5,targetMonthlyHours:20,priority:"medium",color:"#72c59b"})):[],workoutTemplate:prefs.gym?{name:"Weekly plan",recurring:true,startsOn:toDateKey(new Date()),days:days.flatMap((day,index)=>day.enabled?[{dayOfWeek:index+1,workoutName:day.workoutName,workoutType:day.workoutType,startTime:day.startTime,endTime:day.endTime,exercises:[]}]:[])}:null,job:prefs.partTimeJob?{jobName:job.jobName,company:job.company,hourlyTarget:job.hourlyTarget?Number(job.hourlyTarget):null}:null};if(prefs.student&&!payload.subjects.length){setError("Add at least one subject");return;}if(prefs.gym&&!payload.workoutTemplate?.days.length){setError("Select at least one workout day");return;}if(prefs.partTimeJob&&(!job.jobName.trim()||!job.company.trim())){setError("Add your job name and company");return;}setSaving(true);try{await completeOnboarding(payload);navigate("/dashboard",{replace:true});}catch(requestError){setError(requestError instanceof Error?requestError.message:"Could not finish setup");}finally{setSaving(false);}}
-    return <main className="auth-page"><section className="auth-panel auth-panel-wide"><div className="onboarding-steps">{[1,2,3].map((value)=><span className={value<=step?"active":""} key={value}/>)}</div>{step===1&&<><header className="auth-heading"><p className="eyebrow">Welcome, {user.firstName}</p><h1>Set up your dashboard</h1><p>Choose only the areas you want in your daily workspace.</p></header><div className="auth-actions"><span/><button className="primary-button" onClick={()=>setStep(2)} type="button">Continue</button></div></>}{step===2&&<><header className="auth-heading"><p className="eyebrow">Step 2</p><h1>What do you want to track?</h1></header><div className="feature-options">{([["student","Studies","Subjects, homework, Pomodoro and study statistics"],["gym","Workouts","Recurring schedules, physical activities and progress"],["partTimeJob","Part-Time Job","Job sessions, tasks and hours"]] as const).map(([key,label,description])=><label className={`feature-option ${prefs[key]?"selected":""}`} key={key}><input type="checkbox" checked={prefs[key]} onChange={()=>toggle(key)}/><strong>{label}</strong><span>{description}</span></label>)}</div>{error&&<p className="form-error">{error}</p>}<div className="auth-actions"><button className="secondary-button" onClick={()=>setStep(1)} type="button">Back</button><button className="primary-button" onClick={()=>selected?setStep(3):setError("Select at least one feature")} type="button">Configure</button></div></>}{step===3&&<><header className="auth-heading"><p className="eyebrow">Step 3</p><h1>Configure your workspace</h1></header><div className="onboarding-config">{prefs.student&&<section className="config-section"><h2>Subjects</h2>{subjects.map((subject,index)=><div className="subject-row" key={index}><input className="text-input" value={subject} onChange={(event)=>setSubjects((current)=>current.map((item,itemIndex)=>itemIndex===index?event.target.value:item))}/><span/><span/><button className="small-button" type="button" onClick={()=>setSubjects((current)=>current.filter((_,itemIndex)=>itemIndex!==index))}>Remove</button></div>)}<button className="secondary-button" type="button" onClick={()=>setSubjects((current)=>[...current,""])}>Add subject</button></section>}{prefs.gym&&<section className="config-section"><h2>Weekly workout schedule</h2>{days.map((day,index)=><div className="schedule-row-config" key={dayNames[index]}><input type="checkbox" checked={day.enabled} onChange={()=>setDays((current)=>current.map((item,itemIndex)=>itemIndex===index?{...item,enabled:!item.enabled}:item))}/><strong>{dayNames[index].slice(0,3)}</strong><input className="text-input" value={day.workoutName} disabled={!day.enabled} onChange={(event)=>setDays((current)=>current.map((item,itemIndex)=>itemIndex===index?{...item,workoutName:event.target.value}:item))}/><select className="select-input" value={day.workoutType} disabled={!day.enabled} onChange={(event)=>setDays((current)=>current.map((item,itemIndex)=>itemIndex===index?{...item,workoutType:event.target.value as DayDraft["workoutType"]}:item))}>{["Strength","Push","Pull","Legs","Upper","Lower","Full Body","Cardio","Running","Swimming","Cycling","Boxing","Taekwondo","Football","Calisthenics","Weightlifting","Other","Rest"].map((type)=><option key={type}>{type}</option>)}</select><input className="text-input" type="time" value={day.startTime} disabled={!day.enabled} onChange={(event)=>setDays((current)=>current.map((item,itemIndex)=>itemIndex===index?{...item,startTime:event.target.value}:item))}/><input className="text-input" type="time" value={day.endTime} disabled={!day.enabled} onChange={(event)=>setDays((current)=>current.map((item,itemIndex)=>itemIndex===index?{...item,endTime:event.target.value}:item))}/></div>)}</section>}{prefs.partTimeJob&&<section className="config-section"><h2>Part-Time Job</h2><div className="auth-grid"><label><span className="field-label">Job name</span><input className="text-input" value={job.jobName} onChange={(event)=>setJob((current)=>({...current,jobName:event.target.value}))}/></label><label><span className="field-label">Company</span><input className="text-input" value={job.company} onChange={(event)=>setJob((current)=>({...current,company:event.target.value}))}/></label></div><label><span className="field-label">Weekly hour target (optional)</span><input className="text-input" type="number" min="0" max="168" value={job.hourlyTarget} onChange={(event)=>setJob((current)=>({...current,hourlyTarget:event.target.value}))}/></label></section>}</div>{error&&<p className="form-error">{error}</p>}<div className="auth-actions"><button className="secondary-button" onClick={()=>setStep(2)} type="button">Back</button><button className="primary-button" disabled={saving} onClick={()=>void finish()} type="button">{saving?"Finishing...":"Finish setup"}</button></div></>}</section></main>;
+const dayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const workoutTypes: WorkoutType[] = ["Strength", "Push", "Pull", "Legs", "Upper", "Lower", "Full Body", "Cardio", "Running", "Swimming", "Cycling", "Boxing", "Taekwondo", "Football", "Calisthenics", "Weightlifting", "Other", "Rest"];
+type DayDraft = { enabled: boolean; workoutName: string; workoutType: WorkoutType; startTime: string; endTime: string };
+
+export function Onboarding() {
+    const { user, completeOnboarding } = useAuth();
+    const navigate = useNavigate();
+    const [step, setStep] = useState(1);
+    const [prefs, setPrefs] = useState<UserPreferences>({ student: true, gym: false, partTimeJob: false });
+    const [subjects, setSubjects] = useState<string[]>([]);
+    const [job, setJob] = useState({ jobName: "", company: "", hourlyTarget: "" });
+    const [days, setDays] = useState<DayDraft[]>(dayNames.map(() => ({ enabled: false, workoutName: "Workout", workoutType: "Full Body", startTime: "18:00", endTime: "19:00" })));
+    const [error, setError] = useState("");
+    const [saving, setSaving] = useState(false);
+    const selected = useMemo(() => prefs.student || prefs.gym || prefs.partTimeJob, [prefs]);
+
+    if (!user) return <Navigate to="/login" replace />;
+    if (user.onboardingCompleted) return <Navigate to="/dashboard" replace />;
+
+    const toggle = (key: keyof UserPreferences) => setPrefs((current) => ({ ...current, [key]: !current[key] }));
+
+    async function finish() {
+        setError("");
+        if (!selected) return setError("Select at least one feature");
+        if (prefs.partTimeJob && (!job.jobName.trim() || !job.company.trim())) return setError("Add your job name and company");
+
+        const workoutDays = days.flatMap((day, index) => day.enabled ? [{
+            dayOfWeek: index + 1,
+            workoutName: day.workoutName,
+            workoutType: day.workoutType,
+            startTime: day.startTime,
+            endTime: day.endTime,
+            exercises: [] as never[],
+        }] : []);
+        const payload: OnboardingInput = {
+            preferences: prefs,
+            subjects: prefs.student ? subjects.filter((name) => name.trim()).map((name) => ({ name: name.trim(), targetWeeklyHours: 5, targetMonthlyHours: 20, priority: "medium", color: "#72c59b" })) : [],
+            workoutTemplate: prefs.gym && workoutDays.length ? { name: "Weekly plan", recurring: true, startsOn: toDateKey(new Date()), days: workoutDays } : null,
+            job: prefs.partTimeJob ? { jobName: job.jobName, company: job.company, hourlyTarget: job.hourlyTarget ? Number(job.hourlyTarget) : null } : null,
+        };
+
+        setSaving(true);
+        try {
+            await completeOnboarding(payload);
+            navigate("/dashboard", { replace: true });
+        } catch (requestError) {
+            setError(requestError instanceof Error ? requestError.message : "Could not finish setup");
+        } finally {
+            setSaving(false);
+        }
+    }
+
+    return <main className="auth-page"><section className="auth-panel auth-panel-wide">
+        <div className="onboarding-steps">{[1, 2, 3].map((value) => <span className={value <= step ? "active" : ""} key={value} />)}</div>
+        {step === 1 && <>
+            <header className="auth-heading"><p className="eyebrow">Welcome, {user.firstName}</p><h1>Set up your dashboard</h1><p>Choose only the areas you want in your daily workspace.</p></header>
+            <div className="auth-actions"><span /><button className="primary-button" onClick={() => setStep(2)} type="button">Continue</button></div>
+        </>}
+        {step === 2 && <>
+            <header className="auth-heading"><p className="eyebrow">Step 2</p><h1>What do you want to track?</h1></header>
+            <div className="feature-options">{([[
+                "student", "Studies", "Subjects, homework, Pomodoro and study statistics",
+            ], [
+                "gym", "Workouts", "Recurring schedules, physical activities and progress",
+            ], [
+                "partTimeJob", "Part-Time Job", "Job sessions, tasks and hours",
+            ]] as const).map(([key, label, description]) => <label className={`feature-option ${prefs[key] ? "selected" : ""}`} key={key}><input type="checkbox" checked={prefs[key]} onChange={() => toggle(key)} /><strong>{label}</strong><span>{description}</span></label>)}</div>
+            {error && <p className="form-error">{error}</p>}
+            <div className="auth-actions"><button className="secondary-button" onClick={() => setStep(1)} type="button">Back</button><button className="primary-button" onClick={() => selected ? setStep(3) : setError("Select at least one feature")} type="button">Configure</button></div>
+        </>}
+        {step === 3 && <>
+            <header className="auth-heading"><p className="eyebrow">Step 3</p><h1>Configure your workspace</h1></header>
+            <div className="onboarding-config">
+                {prefs.student && <section className="config-section"><h2>Subjects (optional)</h2>
+                    {subjects.map((subject, index) => <div className="subject-row" key={index}><input className="text-input" value={subject} onChange={(event) => setSubjects((current) => current.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} /><span /><span /><button className="small-button" type="button" onClick={() => setSubjects((current) => current.filter((_, itemIndex) => itemIndex !== index))}>Remove</button></div>)}
+                    <button className="secondary-button" type="button" onClick={() => setSubjects((current) => [...current, ""])}>Add subject</button>
+                </section>}
+                {prefs.gym && <section className="config-section"><h2>Weekly workout schedule (optional)</h2>
+                    {days.map((day, index) => <div className="schedule-row-config" key={dayNames[index]}><input type="checkbox" checked={day.enabled} onChange={() => setDays((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, enabled: !item.enabled } : item))} /><strong>{dayNames[index].slice(0, 3)}</strong><input className="text-input" value={day.workoutName} disabled={!day.enabled} onChange={(event) => setDays((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, workoutName: event.target.value } : item))} /><select className="select-input" value={day.workoutType} disabled={!day.enabled} onChange={(event) => setDays((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, workoutType: event.target.value as WorkoutType } : item))}>{workoutTypes.map((type) => <option key={type}>{type}</option>)}</select><input className="text-input" type="time" value={day.startTime} disabled={!day.enabled} onChange={(event) => setDays((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, startTime: event.target.value } : item))} /><input className="text-input" type="time" value={day.endTime} disabled={!day.enabled} onChange={(event) => setDays((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, endTime: event.target.value } : item))} /></div>)}
+                </section>}
+                {prefs.partTimeJob && <section className="config-section"><h2>Part-Time Job</h2><div className="auth-grid"><label><span className="field-label">Job name</span><input className="text-input" value={job.jobName} onChange={(event) => setJob((current) => ({ ...current, jobName: event.target.value }))} /></label><label><span className="field-label">Company</span><input className="text-input" value={job.company} onChange={(event) => setJob((current) => ({ ...current, company: event.target.value }))} /></label></div><label><span className="field-label">Weekly hour target (optional)</span><input className="text-input" type="number" min="0" max="168" value={job.hourlyTarget} onChange={(event) => setJob((current) => ({ ...current, hourlyTarget: event.target.value }))} /></label></section>}
+            </div>
+            {error && <p className="form-error">{error}</p>}
+            <div className="auth-actions"><button className="secondary-button" onClick={() => setStep(2)} type="button">Back</button><button className="primary-button" disabled={saving} onClick={() => void finish()} type="button">{saving ? "Finishing..." : "Finish setup"}</button></div>
+        </>}
+    </section></main>;
 }
