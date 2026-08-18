@@ -52,6 +52,9 @@
     --calendar-gym-border: #5b442b;
     --calendar-homework-border: #64323a;
     --calendar-general-border: #4a455c;
+    --workout-today: #18211f;
+    --workout-template-border: #365245;
+    --workout-template-bg: #17251f;
     --linked-event-bg: #182536;
     --linked-event-text: #b7caea;
     --radius-sm: 5px;
@@ -89,6 +92,11 @@
     --danger: #c33f4a;
     --danger-muted: #fde9eb;
     --study-muted: #e3f4eb;
+    --study: #287653;
+    --job: #2f5d9b;
+    --gym: #9a5b1a;
+    --homework: #a53645;
+    --general: #55457e;
     --job-muted: #e5eefc;
     --gym-muted: #fff0dc;
     --homework-muted: #fde8eb;
@@ -116,6 +124,9 @@
     --calendar-gym-border: #a86d2c;
     --calendar-homework-border: #ad4d59;
     --calendar-general-border: #66558e;
+    --workout-today: var(--calendar-today);
+    --workout-template-border: var(--calendar-gym-border);
+    --workout-template-bg: var(--calendar-today);
     --linked-event-bg: #e9f0fb;
     --linked-event-text: #29466f;
     --shadow-modal: 0 24px 64px rgba(15, 23, 42, .18);
