@@ -25,12 +25,12 @@
 
 .status-badge, .priority-badge { display: inline-block; padding: 3px 7px; border: 1px solid transparent; border-radius: 4px; font-size: 10px; font-weight: 750; text-transform: capitalize; white-space: nowrap; }
 .status-todo { border-color: var(--border); background: var(--surface-elevated); color: var(--text-secondary); }
-.status-in-progress { border-color: #645020; background: var(--warning-muted); color: var(--warning); }
-.status-completed { border-color: #28583e; background: var(--success-muted); color: var(--success); }
-.status-missed { border-color: #67363b; background: var(--danger-muted); color: var(--danger); }
-.priority-low { border-color: #28583e; background: var(--success-muted); color: var(--success); }
-.priority-medium { border-color: #645020; background: var(--warning-muted); color: var(--warning); }
-.priority-high, .priority-critical { border-color: #67363b; background: var(--danger-muted); color: var(--danger); }
+.status-in-progress { border-color: var(--status-progress-border); background: var(--warning-muted); color: var(--warning); }
+.status-completed { border-color: var(--status-complete-border); background: var(--success-muted); color: var(--success); }
+.status-missed { border-color: var(--status-missed-border); background: var(--danger-muted); color: var(--danger); }
+.priority-low { border-color: var(--status-complete-border); background: var(--success-muted); color: var(--success); }
+.priority-medium { border-color: var(--status-progress-border); background: var(--warning-muted); color: var(--warning); }
+.priority-high, .priority-critical { border-color: var(--status-missed-border); background: var(--danger-muted); color: var(--danger); }
 .progress-track { height: 6px; margin-top: 10px; overflow: hidden; border-radius: 3px; background: var(--border-subtle); }
 .progress-track > span { display: block; height: 100%; border-radius: inherit; background: var(--progress-color, var(--accent)); transition: width var(--transition-fast); }
 .overdue { margin-inline: -8px; padding-inline: 8px; background: rgba(248, 113, 113, .055); }
@@ -47,7 +47,7 @@
 .weekly-workout-grid { display: grid; grid-template-columns: repeat(7, minmax(110px, 1fr)); overflow-x: auto; border-top: 1px solid var(--border); }
 .weekly-workout-day { min-height: 170px; padding: 12px 10px; border-right: 1px solid var(--border-subtle); background: var(--surface); }
 .weekly-workout-day:last-child { border-right: 0; }
-.weekly-workout-day.today { background: #18211f; box-shadow: inset 0 2px var(--success); }
+.weekly-workout-day.today { background: var(--workout-today); box-shadow: inset 0 2px var(--success); }
 .weekly-workout-date { display: flex; align-items: center; justify-content: space-between; color: var(--text-muted); }
 .weekly-workout-date span { font-size: 10px; font-weight: 750; text-transform: uppercase; }
 .weekly-workout-date strong { color: var(--text-secondary); font-size: 17px; }
@@ -61,7 +61,7 @@
 
 .template-days { display: flex; flex-direction: column; gap: 9px; margin-top: 16px; }
 .template-day { padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
-.template-day.active { border-color: #365245; background: #17251f; }
+.template-day.active { border-color: var(--workout-template-border); background: var(--workout-template-bg); }
 .settings-section { display: grid; gap: var(--space-4); margin-top: var(--space-5); }
 .settings-section h2 { margin: 2px 0 0; font-size: 18px; }
 .settings-section .section-header { align-items: flex-start; }
