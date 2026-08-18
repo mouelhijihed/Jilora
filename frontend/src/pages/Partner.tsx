@@ -14,7 +14,7 @@ import "./Partner.css";
 type SubjectOption = { id: string; name: string };
 type ProductivitySubjects = { subjects: SubjectOption[] };
 
-const encouragements = ["Keep going", "You've got this", "Nice work", "Start another session", "Great job"] as const;
+const defaultEncouragements = ["Keep going", "You've got this", "Nice work", "Start another session", "Great job"] as const;
 
 function dateInput(date: Date) { return date.toISOString().slice(0, 10); }
 function addDays(date: Date, count: number) { const next = new Date(date); next.setDate(next.getDate() + count); return next; }
@@ -37,6 +37,7 @@ export function Partner() {
     const [settings, setSettings] = useState<PartnerSettings | null>(null);
     const [goals, setGoals] = useState<SharedGoal[]>([]);
     const [subjects, setSubjects] = useState<SubjectOption[]>([]);
+    const [encouragements, setEncouragements] = useState<string[]>([...defaultEncouragements]);
     const [identifier, setIdentifier] = useState("");
     const [sessionSubject, setSessionSubject] = useState("");
     const [sessionDuration, setSessionDuration] = useState(25);
@@ -65,6 +66,10 @@ export function Partner() {
                     partnerService.sharedData(), partnerService.settings(), partnerService.goals(), apiRequest<ProductivitySubjects>("/api/productivity"),
                 ]);
                 setShared(nextShared); setSettings(nextSettings); setGoals(nextGoals); setSubjects(productivity.subjects || []);
+                try {
+                    const nextEncouragements = await partnerService.encouragements();
+                    setEncouragements([...nextEncouragements.defaults, ...nextEncouragements.custom]);
+                } catch { setEncouragements([...defaultEncouragements]); }
             } else {
                 setShared(null); setSettings(null); setGoals([]); setSubjects([]);
             }

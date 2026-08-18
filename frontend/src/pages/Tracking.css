@@ -62,6 +62,15 @@
 .template-days { display: flex; flex-direction: column; gap: 9px; margin-top: 16px; }
 .template-day { padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
 .template-day.active { border-color: #365245; background: #17251f; }
+.settings-section { display: grid; gap: var(--space-4); margin-top: var(--space-5); }
+.settings-section h2 { margin: 2px 0 0; font-size: 18px; }
+.settings-section .section-header { align-items: flex-start; }
+.settings-toggle { display: inline-flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 12px; }
+.message-editor { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: var(--space-3); }
+.message-list { display: grid; gap: 8px; }
+.message-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--surface-elevated); }
+.message-row > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 620px) { .message-editor { grid-template-columns: 1fr; } .message-row { align-items: flex-start; flex-direction: column; } }
 .template-day-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .template-day-heading > .text-input { min-width: 0; }
 .template-day .event-form-grid { margin-top: 12px; }

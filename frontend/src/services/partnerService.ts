@@ -2,6 +2,7 @@ import { apiRequest } from "./api";
 import type { PartnerSettings, PartnerSharedData, PartnerState, SharedGoal } from "../types/partner";
 
 export type GoalInput = { title: string; type: SharedGoal["type"]; target: number; manualProgress?: number; startDate: string; endDate: string };
+export type EncouragementMessage = { id: string; message: string; enabled: boolean; createdAt: string; updatedAt: string };
 
 function goalRequest(input: GoalInput) {
     return { ...input, target: input.type === "study_minutes" ? input.target * 60 : input.target };
@@ -34,6 +35,12 @@ export const partnerService = {
     createSession: (subjectId: string | undefined, durationMinutes: number) => apiRequest("/api/partners/study-sessions", { method: "POST", body: JSON.stringify({ ...(subjectId ? { subjectId } : {}), durationMinutes }) }),
     sessionAction: (id: string, action: "join" | "decline" | "leave" | "pause" | "resume" | "complete" | "cancel") => apiRequest(`/api/partners/study-sessions/${id}/${action}`, { method: "POST" }),
     encourage: (message: string) => apiRequest("/api/partners/encouragement", { method: "POST", body: JSON.stringify({ message }) }),
+    encouragements: () => apiRequest<{ defaults: string[]; custom: string[]; enabled: boolean }>("/api/encouragements"),
+    encouragementManagement: () => apiRequest<{ settings: { enabled: boolean }; messages: EncouragementMessage[] }>("/api/encouragements/manage"),
+    updateEncouragementSettings: (enabled: boolean) => apiRequest<{ enabled: boolean }>("/api/encouragements/settings", { method: "PUT", body: JSON.stringify({ enabled }) }),
+    createEncouragement: (message: string) => apiRequest<EncouragementMessage>("/api/encouragements", { method: "POST", body: JSON.stringify({ message, enabled: true }) }),
+    updateEncouragement: (id: string, message: string, enabled: boolean) => apiRequest<EncouragementMessage>(`/api/encouragements/${id}`, { method: "PUT", body: JSON.stringify({ message, enabled }) }),
+    deleteEncouragement: (id: string) => apiRequest(`/api/encouragements/${id}`, { method: "DELETE" }),
     readNotification: (id: string) => apiRequest(`/api/partners/notifications/${id}/read`, { method: "POST" }),
     clearNotifications: () => apiRequest<void>("/api/partners/notifications", { method: "DELETE" }),
 };

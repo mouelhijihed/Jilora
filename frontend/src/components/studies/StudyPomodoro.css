@@ -1,7 +1,7 @@
 .pomodoro-panel { display: grid; grid-template-columns: minmax(280px, .85fr) minmax(320px, 1.15fr); margin-bottom: 28px; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
 .pomodoro-config { display: flex; flex-direction: column; gap: 14px; padding: 22px; border-right: 1px solid var(--border); }
 .pomodoro-config h2 { margin: 3px 0 0; font-size: 20px; }
-.pomodoro-mode { display: grid; grid-template-columns: repeat(3, 1fr); padding: 3px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: #111720; }
+.pomodoro-mode { display: grid; grid-template-columns: repeat(3, 1fr); padding: 3px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--legacy-panel); }
 .pomodoro-mode button { min-height: 32px; padding: 6px; border: 0; border-radius: 4px; background: transparent; color: var(--text-muted); font-size: 12px; font-weight: 700; }
 .pomodoro-mode button.active { background: var(--surface-strong); color: var(--text-primary); }
 .pomodoro-settings { padding-top: 8px; border-top: 1px solid var(--border-subtle); }
@@ -9,7 +9,10 @@
 .pomodoro-settings-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
 .pomodoro-settings-grid label span { display: block; margin-bottom: 4px; color: var(--text-muted); font-size: 10px; }
 .pomodoro-settings-grid .small-button { grid-column: 1 / -1; }
-.pomodoro-timer { display: flex; align-items: center; justify-content: center; flex-direction: column; min-height: 350px; padding: 28px; background: #121923; }
+.pomodoro-timer { display: flex; align-items: center; justify-content: center; flex-direction: column; min-height: 350px; padding: 28px; background: var(--legacy-panel-strong); }
+.audio-setting { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.volume-setting { grid-column: 1 / -1; }
+.volume-setting input { width: 100%; accent-color: var(--accent); }
 .pomodoro-clock { margin: 20px 0 14px; color: var(--text-primary); font-size: clamp(48px, 7vw, 64px); font-variant-numeric: tabular-nums; letter-spacing: 0; line-height: 1; }
 .pomodoro-progress { width: min(100%, 380px); height: 6px; overflow: hidden; border-radius: 4px; background: var(--border); }
 .pomodoro-progress span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width .2s linear; }

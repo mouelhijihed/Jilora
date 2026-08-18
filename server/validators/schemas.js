@@ -131,7 +131,9 @@ const schemas = {
         manualProgress: z.number().min(0).max(1000000).optional(), startDate: date, endDate: date,
     }).strict().refine((value) => value.endDate >= value.startDate, "Goal end date must be on or after its start date"),
     partnerSession: z.object({ subjectId: id.optional(), durationMinutes: z.number().int().min(1).max(720) }).strict(),
-    encouragement: z.object({ message: z.enum(["Keep going", "You've got this", "Nice work", "Start another session", "Great job"]) }).strict(),
+    encouragement: z.object({ message: z.string().trim().min(1).max(240) }).strict(),
+    encouragementMessage: z.object({ message: z.string().trim().min(1).max(240), enabled: z.boolean().default(true) }).strict(),
+    encouragementSettings: z.object({ enabled: z.boolean() }).strict(),
 };
 schemas.activitySessionUpdate = schemas.activitySessionCreate.partial().strict().refine((value) => Object.keys(value).length > 0, "Provide at least one field");
 

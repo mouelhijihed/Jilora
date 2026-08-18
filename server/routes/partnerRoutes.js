@@ -1,6 +1,7 @@
 const express = require("express");
 const rateLimit = require("express-rate-limit");
 const service = require("../services/partnerService");
+const encouragementService = require("../services/encouragementService");
 const { schemas, parse, id } = require("../validators/schemas");
 
 const router = express.Router();
@@ -41,6 +42,12 @@ router.post("/partners/study-sessions/:id/complete", async (request,response,nex
 router.post("/partners/study-sessions/:id/cancel", async (request,response,next)=>{try{await service.cancelSession(request.userId,parse(id,request.params.id));response.status(204).end();}catch(error){next(error);}});
 
 router.post("/partners/encouragement", async (request,response,next)=>{try{await service.encouragement(request.userId,parse(schemas.encouragement,request.body).message);response.status(204).end();}catch(error){next(error);}});
+router.get("/encouragements", async (request,response,next)=>{try{response.json(await encouragementService.available(request.userId));}catch(error){next(error);}});
+router.get("/encouragements/manage", async (request,response,next)=>{try{response.json({settings:await encouragementService.getSettings(request.userId),messages:await encouragementService.list(request.userId)});}catch(error){next(error);}});
+router.put("/encouragements/settings", async (request,response,next)=>{try{response.json(await encouragementService.updateSettings(request.userId,parse(schemas.encouragementSettings,request.body).enabled));}catch(error){next(error);}});
+router.post("/encouragements", async (request,response,next)=>{try{response.status(201).json(await encouragementService.create(request.userId,parse(schemas.encouragementMessage,request.body).message));}catch(error){next(error);}});
+router.put("/encouragements/:id", async (request,response,next)=>{try{const input=parse(schemas.encouragementMessage,request.body);response.json(await encouragementService.update(request.userId,parse(id,request.params.id),input.message,input.enabled));}catch(error){next(error);}});
+router.delete("/encouragements/:id", async (request,response,next)=>{try{await encouragementService.remove(request.userId,parse(id,request.params.id));response.status(204).end();}catch(error){next(error);}});
 router.get("/partners/notifications", async (request,response,next)=>{try{response.json(await service.listNotifications(request.userId));}catch(error){next(error);}});
 router.delete("/partners/notifications", async (request,response,next)=>{try{await service.clearNotifications(request.userId);response.status(204).end();}catch(error){next(error);}});
 router.post("/partners/notifications/:id/read", async (request,response,next)=>{try{response.json(await service.readNotification(request.userId,parse(id,request.params.id)));}catch(error){next(error);}});

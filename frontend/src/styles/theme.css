@@ -31,6 +31,18 @@
     --general-muted: #2d2938;
     --chart-grid: #252d37;
     --chart-planned: #566170;
+    --button-primary-text: #0d1117;
+    --border-strong: #3a4758;
+    --danger-border: #6c363b;
+    --danger-hover: #5a2a2e;
+    --success-border: #285440;
+    --success-text: #a7efc4;
+    --danger-text: #ffb1b1;
+    --modal-backdrop: rgba(5, 8, 12, .74);
+    --legacy-panel: #111720;
+    --legacy-panel-strong: #121923;
+    --legacy-sidebar: #10151c;
+    --legacy-link-active: #dce5ff;
     --radius-sm: 5px;
     --radius-md: 8px;
     --radius-lg: 10px;
@@ -44,3 +56,52 @@
     --shadow-modal: 0 24px 64px rgba(0, 0, 0, .42);
     --transition-fast: 160ms ease;
 }
+:root[data-resolved-theme="light"] {
+    color-scheme: light;
+    --bg: #f4f6f8;
+    --surface: #ffffff;
+    --surface-elevated: #f8fafc;
+    --surface-hover: #eef2f6;
+    --surface-strong: #e4eaf1;
+    --border: #cbd5e1;
+    --border-subtle: #e5eaf0;
+    --text-primary: #182230;
+    --text-secondary: #4b5563;
+    --text-muted: #6b7280;
+    --accent: #4f6fd6;
+    --accent-hover: #405fc0;
+    --accent-muted: #e4eafd;
+    --success: #18834b;
+    --success-muted: #e4f5eb;
+    --warning: #996d00;
+    --warning-muted: #fff4cf;
+    --danger: #c33f4a;
+    --danger-muted: #fde9eb;
+    --study-muted: #e3f4eb;
+    --job-muted: #e5eefc;
+    --gym-muted: #fff0dc;
+    --homework-muted: #fde8eb;
+    --general-muted: #eeeaf7;
+    --chart-grid: #dbe2ea;
+    --chart-planned: #8b98a8;
+    --button-primary-text: #ffffff;
+    --border-strong: #94a3b8;
+    --danger-border: #d77a82;
+    --danger-hover: #f5d5d8;
+    --success-border: #8cc7a6;
+    --success-text: #126b3d;
+    --danger-text: #9f2634;
+    --modal-backdrop: rgba(15, 23, 42, .34);
+    --legacy-panel: #f1f5f9;
+    --legacy-panel-strong: #eef2f7;
+    --legacy-sidebar: #ffffff;
+    --legacy-link-active: #243b78;
+    --shadow-modal: 0 24px 64px rgba(15, 23, 42, .18);
+}
+:root[data-resolved-theme="light"] .sidebar { background: var(--legacy-sidebar); }
+:root[data-resolved-theme="light"] .pomodoro-mode,
+:root[data-resolved-theme="light"] .view-switcher,
+:root[data-resolved-theme="light"] .month-weekday,
+:root[data-resolved-theme="light"] .calendar-empty { background: var(--legacy-panel); }
+:root[data-resolved-theme="light"] .pomodoro-timer { background: var(--legacy-panel-strong); }
+:root[data-resolved-theme="light"] .modal-backdrop { background: var(--modal-backdrop); }

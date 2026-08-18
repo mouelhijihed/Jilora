@@ -212,6 +212,16 @@ if (!process.env.TEST_DATABASE_URL) {
             assert.equal((await a("/api/partners/goals")).body.some((item) => item.id === custom.body.id), true);
 
             assert.equal((await a("/api/partners/encouragement", { method: "POST", body: JSON.stringify({ message: "Nice work" }) })).status, 204);
+            const customMessage = await a("/api/encouragements", { method: "POST", body: JSON.stringify({ message: "Custom progress message" }) });
+            assert.equal(customMessage.status, 201);
+            assert.equal((await a("/api/encouragements/manage")).body.messages.some((item) => item.id === customMessage.body.id), true);
+            assert.equal((await b(`/api/encouragements/${customMessage.body.id}`, { method: "PUT", body: JSON.stringify({ message: "IDOR", enabled: true }) })).status, 404);
+            assert.equal((await b(`/api/encouragements/${customMessage.body.id}`, { method: "DELETE" })).status, 404);
+            assert.equal((await a("/api/encouragements/settings", { method: "PUT", body: JSON.stringify({ enabled: false }) })).body.enabled, false);
+            assert.equal((await a("/api/encouragements")).body.custom.length, 0);
+            assert.equal((await a("/api/partners/encouragement", { method: "POST", body: JSON.stringify({ message: "Custom progress message" }) })).status, 204);
+            assert.equal((await a(`/api/encouragements/${customMessage.body.id}`, { method: "PUT", body: JSON.stringify({ message: "Updated progress message", enabled: true }) })).status, 200);
+            assert.equal((await a(`/api/encouragements/${customMessage.body.id}`, { method: "DELETE" })).status, 204);
             const notification = (await b("/api/partners/notifications")).body.find((item) => item.type === "encouragement");
             assert.ok(notification);
             assert.equal((await c(`/api/partners/notifications/${notification.id}/read`, { method: "POST" })).status, 404);
