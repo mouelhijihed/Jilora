@@ -38,6 +38,7 @@ export function Partner() {
     const [goals, setGoals] = useState<SharedGoal[]>([]);
     const [subjects, setSubjects] = useState<SubjectOption[]>([]);
     const [encouragements, setEncouragements] = useState<string[]>([...defaultEncouragements]);
+    const [encouragementDraft, setEncouragementDraft] = useState("");
     const [identifier, setIdentifier] = useState("");
     const [sessionSubject, setSessionSubject] = useState("");
     const [sessionDuration, setSessionDuration] = useState(25);
@@ -84,8 +85,8 @@ export function Partner() {
 
     async function run(key: string, action: () => Promise<unknown>, success?: string) {
         setBusy(key); setError(""); setNotice("");
-        try { await action(); if (success) setNotice(success); await load(false); }
-        catch (requestError) { setError(requestError instanceof Error ? requestError.message : "The request could not be completed"); }
+        try { await action(); if (success) setNotice(success); await load(false); return true; }
+        catch (requestError) { setError(requestError instanceof Error ? requestError.message : "The request could not be completed"); return false; }
         finally { setBusy(""); }
     }
 
@@ -94,6 +95,13 @@ export function Partner() {
         if (!identifier.trim()) return;
         await run("invite", () => partnerService.invite(identifier.trim()), "Invitation sent.");
         setIdentifier("");
+    }
+
+    async function sendEncouragement(event: FormEvent) {
+        event.preventDefault();
+        const message = encouragementDraft.trim();
+        if (!message) { setError("Enter an encouragement message"); return; }
+        if (await run("encouragement-direct", () => partnerService.encourage(message), "Encouragement sent.")) setEncouragementDraft("");
     }
 
     async function saveSettings(event: FormEvent) {
@@ -210,7 +218,7 @@ export function Partner() {
                 </div>
 
                 <aside className="partner-column">
-                    <section className="partner-section"><div className="section-header"><div><p className="eyebrow">Encouragement</p><h2>Send support</h2></div><FiHeart className="section-icon" aria-hidden="true" /></div><div className="encouragement-grid">{encouragements.map((message) => <button className="small-button" type="button" key={message} disabled={busy === `encourage-${message}`} onClick={() => void run(`encourage-${message}`, () => partnerService.encourage(message), "Encouragement sent.")}><FiSend aria-hidden="true" />{message}</button>)}</div></section>
+                    <section className="partner-section"><div className="section-header"><div><p className="eyebrow">Encouragement</p><h2>Send support</h2></div><FiHeart className="section-icon" aria-hidden="true" /></div><form className="partner-compact-form" onSubmit={sendEncouragement}><label><span className="field-label">Message</span><textarea className="text-input encouragement-input" value={encouragementDraft} onChange={(event) => setEncouragementDraft(event.target.value)} maxLength={240} rows={3} placeholder="Keep going, you've got this" required /></label><div className="partner-actions"><button className="primary-button" type="submit" disabled={busy === "encouragement-direct"}><FiSend aria-hidden="true" />Send</button></div></form><div className="encouragement-grid">{encouragements.map((message) => <button className="small-button" type="button" key={message} disabled={busy === `encourage-${message}`} onClick={() => void run(`encourage-${message}`, () => partnerService.encourage(message), "Encouragement sent.")}><FiSend aria-hidden="true" />{message}</button>)}</div></section>
 
                     <section className="partner-section"><div className="section-header"><div><p className="eyebrow">Recent activity</p><h2>Shared feed</h2></div></div><div className="activity-list">{shared?.activity.map((activity) => <div className="activity-row" key={activity.id}><span className="activity-mark" aria-hidden="true"><FiCheck /></span><div><strong>{activity.actor.firstName} {activity.message.charAt(0).toLowerCase() + activity.message.slice(1)}</strong><time>{timeAgo(activity.createdAt)}</time></div></div>)}{!shared?.activity.length && <p className="empty-state">Shared activities will appear here only when the person has enabled the relevant sharing category.</p>}</div></section>
 

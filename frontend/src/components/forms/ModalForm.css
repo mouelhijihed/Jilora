@@ -5,7 +5,7 @@
 .event-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 16px 0; }
 .duration-preview { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 16px; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-secondary); font-size: 13px; }
 .duration-preview strong { color: var(--text-primary); }
-.linked-event-note { margin: -4px 0 15px; padding: 9px 11px; border-left: 2px solid var(--job); background: #182536; color: #b7caea; font-size: 12px; }
+.linked-event-note { margin: -4px 0 15px; padding: 9px 11px; border-left: 2px solid var(--job); background: var(--linked-event-bg); color: var(--linked-event-text); font-size: 12px; }
 .checkbox-field { display: flex; align-items: center; gap: 9px; margin-top: 14px; color: var(--text-secondary); font-size: 13px; }
 .checkbox-field input { width: 17px; height: 17px; }
 .modal-actions { display: grid; grid-template-columns: auto 1fr auto auto; gap: 8px; margin-top: 22px; }

@@ -13,6 +13,14 @@ const invitationLimiter = rateLimit({
     legacyHeaders: false,
     message: { message: "Too many partner invitation attempts. Try again later." },
 });
+const encouragementLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 20,
+    keyGenerator: (request) => request.userId,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: { message: "Too many encouragements. Try again later." },
+});
 
 router.get("/partners", async (request,response,next)=>{try{response.json(await service.getState(request.userId));}catch(error){next(error);}});
 router.get("/partners/me", async (request,response,next)=>{try{response.json(await service.getState(request.userId));}catch(error){next(error);}});
@@ -41,7 +49,7 @@ router.post("/partners/study-sessions/:id/resume", async (request,response,next)
 router.post("/partners/study-sessions/:id/complete", async (request,response,next)=>{try{response.json(await service.completeSession(request.userId,parse(id,request.params.id)));}catch(error){next(error);}});
 router.post("/partners/study-sessions/:id/cancel", async (request,response,next)=>{try{await service.cancelSession(request.userId,parse(id,request.params.id));response.status(204).end();}catch(error){next(error);}});
 
-router.post("/partners/encouragement", async (request,response,next)=>{try{await service.encouragement(request.userId,parse(schemas.encouragement,request.body).message);response.status(204).end();}catch(error){next(error);}});
+router.post("/partners/encouragement", encouragementLimiter, async (request,response,next)=>{try{await service.encouragement(request.userId,parse(schemas.encouragement,request.body).message);response.status(204).end();}catch(error){next(error);}});
 router.get("/encouragements", async (request,response,next)=>{try{response.json(await encouragementService.available(request.userId));}catch(error){next(error);}});
 router.get("/encouragements/manage", async (request,response,next)=>{try{response.json({settings:await encouragementService.getSettings(request.userId),messages:await encouragementService.list(request.userId)});}catch(error){next(error);}});
 router.put("/encouragements/settings", async (request,response,next)=>{try{response.json(await encouragementService.updateSettings(request.userId,parse(schemas.encouragementSettings,request.body).enabled));}catch(error){next(error);}});

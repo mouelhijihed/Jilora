@@ -43,6 +43,17 @@
     --legacy-panel-strong: #121923;
     --legacy-sidebar: #10151c;
     --legacy-link-active: #dce5ff;
+    --calendar-grid: #111720;
+    --calendar-muted-surface: #11161d;
+    --calendar-muted-text: #4d5663;
+    --calendar-today: #18201f;
+    --calendar-study-border: #315a49;
+    --calendar-job-border: #304d72;
+    --calendar-gym-border: #5b442b;
+    --calendar-homework-border: #64323a;
+    --calendar-general-border: #4a455c;
+    --linked-event-bg: #182536;
+    --linked-event-text: #b7caea;
     --radius-sm: 5px;
     --radius-md: 8px;
     --radius-lg: 10px;
@@ -96,6 +107,17 @@
     --legacy-panel-strong: #eef2f7;
     --legacy-sidebar: #ffffff;
     --legacy-link-active: #243b78;
+    --calendar-grid: #f1f5f9;
+    --calendar-muted-surface: #e8edf3;
+    --calendar-muted-text: #64748b;
+    --calendar-today: #eef7f2;
+    --calendar-study-border: #2f7d5a;
+    --calendar-job-border: #4169a5;
+    --calendar-gym-border: #a86d2c;
+    --calendar-homework-border: #ad4d59;
+    --calendar-general-border: #66558e;
+    --linked-event-bg: #e9f0fb;
+    --linked-event-text: #29466f;
     --shadow-modal: 0 24px 64px rgba(15, 23, 42, .18);
 }
 :root[data-resolved-theme="light"] .sidebar { background: var(--legacy-sidebar); }

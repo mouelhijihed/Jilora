@@ -6,6 +6,12 @@ import type { ActivitySession, PomodoroSettings, SessionType } from "../../types
 import "./StudyPomodoro.css";
 
 const modeLabels: Record<SessionType, string> = { focus: "Focus", shortBreak: "Short break", longBreak: "Long break", activity: "Activity" };
+const MUSIC_URL = "/audio/No Copyright Music 🎸 Lofi - Lofi Loop 1 Minute Looping.mp3";
+const ALARM_URL = "/audio/Digital alarm clock sound effect beeping sounds.mp3";
+
+function reportAudioError(label: string, url: string, error: unknown) {
+    if (import.meta.env.DEV) console.warn(`[Pomodoro audio] ${label} could not play (${url})`, error);
+}
 
 function elapsedSeconds(session: ActivitySession, now: number) {
     const currentSegment = session.status === "running" && session.activeStartedAt ? Math.max(0, Math.floor((now - new Date(session.activeStartedAt).getTime()) / 1000)) : 0;
@@ -58,7 +64,7 @@ export function StudyPomodoro() {
     function playMusic() {
         const music = musicRef.current;
         if (!music) return;
-        void music.play().catch(() => undefined);
+        void music.play().catch((error) => reportAudioError("background music", MUSIC_URL, error));
     }
 
     const playCompletionAlarm = useCallback((sessionId: string) => {
@@ -67,20 +73,26 @@ export function StudyPomodoro() {
         const alarm = alarmRef.current;
         if (!alarm) return;
         alarm.currentTime = 0;
-        void alarm.play().catch(() => undefined);
+        void alarm.play().catch((error) => reportAudioError("completion alarm", ALARM_URL, error));
     }, [alarmEnabled]);
 
     useEffect(() => {
-        const music = new Audio("/audio/pomodoro-loop.wav");
+        const music = new Audio(MUSIC_URL);
         music.loop = true;
-        const alarm = new Audio("/audio/pomodoro-complete.wav");
+        const alarm = new Audio(ALARM_URL);
         alarm.loop = false;
+        const reportMusicError = () => { if (import.meta.env.DEV) console.warn(`[Pomodoro audio] background music failed to load (${MUSIC_URL})`); };
+        const reportAlarmError = () => { if (import.meta.env.DEV) console.warn(`[Pomodoro audio] completion alarm failed to load (${ALARM_URL})`); };
+        music.addEventListener("error", reportMusicError);
+        alarm.addEventListener("error", reportAlarmError);
         musicRef.current = music;
         alarmRef.current = alarm;
         return () => {
             music.pause();
+            music.removeEventListener("error", reportMusicError);
             music.src = "";
             alarm.pause();
+            alarm.removeEventListener("error", reportAlarmError);
             alarm.src = "";
             musicRef.current = null;
             alarmRef.current = null;
