@@ -150,7 +150,15 @@ export type ProductivityData = {
 export type StudySubjectInput = Pick<StudySubject, "name" | "targetWeeklyHours" | "targetMonthlyHours" | "priority" | "color">;
 export type StudySessionInput = Pick<StudySession, "subjectId" | "date" | "startTime" | "endTime" | "actualMinutes" | "completed" | "notes">;
 export type WorkoutInput = Pick<Workout, "name" | "workoutType" | "date" | "startTime" | "endTime" | "completed" | "notes">;
-export type WorkoutTemplateInput = Pick<WorkoutTemplate, "name" | "recurring" | "days"> & { startsOn?: string };
+export type WorkoutTemplateInput = {
+    name: WorkoutTemplate["name"];
+    recurring: WorkoutTemplate["recurring"];
+    startsOn?: string;
+    days: Array<Omit<WorkoutTemplateDay, "id" | "plannedMinutes" | "exercises"> & {
+        id?: string;
+        exercises: Array<Omit<WorkoutExercise, "id"> & { id?: string }>;
+    }>;
+};
 export type WorkoutCompletionInput = {
     durationMinutes: number;
     startedAt?: string;

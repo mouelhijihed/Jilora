@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { FiBell, FiCheck, FiClock, FiEdit2, FiHeart, FiPause, FiPlay, FiPlus, FiRefreshCw, FiSend, FiSettings, FiTrash2, FiUserPlus, FiUsers, FiX } from "react-icons/fi";
+import { FiBell, FiCheck, FiClock, FiEdit2, FiHeart, FiPause, FiPlay, FiPlus, FiRefreshCw, FiSend, FiSettings, FiTrash2, FiUserPlus, FiUsers, FiVolume2, FiVolumeX, FiX } from "react-icons/fi";
 import { useAuth } from "../hooks/useAuth";
+import { usePomodoroAudio } from "../hooks/usePomodoroAudio";
 import { subscribeRealtime } from "../hooks/useRealtime";
 import { apiRequest } from "../services/api";
 import { partnerService } from "../services/partnerService";
@@ -32,6 +33,7 @@ function goalValue(value: number, type: SharedGoal["type"]) { return type === "s
 
 export function Partner() {
     const { user } = useAuth();
+    const { musicMuted, setMusicMuted, startMusic, pauseMusic, stopMusic, completeAudio } = usePomodoroAudio();
     const [state, setState] = useState<PartnerState | null>(null);
     const [shared, setShared] = useState<PartnerSharedData | null>(null);
     const [settings, setSettings] = useState<PartnerSettings | null>(null);
@@ -85,6 +87,16 @@ export function Partner() {
     useEffect(() => { void load(true); const interval = window.setInterval(() => void load(false), 60000); return () => window.clearInterval(interval); }, [load]);
     useEffect(() => subscribeRealtime((change) => { if (["all", "partner", "sessions", "productivity", "workouts", "presence"].includes(change.scope)) void load(false); }), [load]);
     useEffect(() => { const interval = window.setInterval(() => setClock(Date.now()), 1000); return () => window.clearInterval(interval); }, []);
+
+    const activeSession = state?.activeSession;
+    const audioMember = activeSession?.members.find((member) => member.isSelf);
+    useEffect(() => {
+        if (!activeSession || !audioMember?.joinedAt || audioMember.leftAt) { stopMusic(); return; }
+        if (audioMember.completedAt || activeSession.status === "completed") { completeAudio(activeSession.id); return; }
+        if (activeSession.status === "active") startMusic();
+        else if (activeSession.status === "paused") pauseMusic();
+        else stopMusic();
+    }, [activeSession, audioMember, completeAudio, pauseMusic, startMusic, stopMusic]);
 
     async function run(key: string, action: () => Promise<unknown>, success?: string) {
         setBusy(key); setError(""); setNotice("");
@@ -140,6 +152,21 @@ export function Partner() {
         setShowSessionForm(false);
     }
 
+    async function performSessionAction(action: "join" | "decline" | "leave" | "pause" | "resume" | "complete" | "cancel") {
+        if (!activeSession) return;
+        if (action === "join" || action === "resume") startMusic();
+        try {
+            const result = await partnerService.sessionAction(activeSession.id, action);
+            if (action === "pause") pauseMusic();
+            if (action === "complete") completeAudio(activeSession.id);
+            if (action === "decline" || action === "leave" || action === "cancel") stopMusic();
+            return result;
+        } catch (requestError) {
+            if (action === "join" || action === "resume") pauseMusic();
+            throw requestError;
+        }
+    }
+
     async function removePartner() {
         if (!window.confirm("Are you sure you want to remove this partner? Personal data will remain intact, but all shared access will end.")) return;
         await run("remove", () => partnerService.remove(), "Partnership removed.");
@@ -160,7 +187,6 @@ export function Partner() {
 
     if (initialLoading && !state) return <main className="partner-page page-shell"><div className="partner-loading">Loading partner workspace...</div></main>;
 
-    const activeSession = state?.activeSession;
     const elapsed = activeSession ? Math.min(activeSession.durationSeconds, activeSession.elapsedSeconds + (activeSession.status === "active" ? Math.floor((clock - fetchedAt) / 1000) : 0)) : 0;
     const remaining = activeSession ? Math.max(0, activeSession.durationSeconds - elapsed) : 0;
     const selfMember = activeSession?.members.find((member) => member.isSelf);
@@ -200,7 +226,7 @@ export function Partner() {
                 <div className="partner-column">
                     <section className="partner-section" aria-labelledby="session-heading"><div className="section-header"><div><p className="eyebrow">Focus</p><h2 id="session-heading">Study together</h2></div>{!activeSession && <button className="primary-button" type="button" onClick={() => setShowSessionForm((current) => !current)}><FiPlay aria-hidden="true" />Start session</button>}</div>
                         {showSessionForm && !activeSession && <form className="partner-compact-form" onSubmit={createSession}>{settings?.shareStudySubjects && <label><span className="field-label">Subject (optional)</span><select className="select-input" value={sessionSubject} onChange={(event) => setSessionSubject(event.target.value)}><option value="">No subject</option>{subjects.map((subject) => <option value={subject.id} key={subject.id}>{subject.name}</option>)}</select></label>}<fieldset className="duration-options"><legend className="field-label">Duration</legend>{[25, 50, 0].map((duration) => <button className={`duration-option ${sessionDuration === duration ? "selected" : ""}`} type="button" key={duration} onClick={() => setSessionDuration(duration)}>{duration || "Custom"}</button>)}</fieldset>{sessionDuration === 0 && <label><span className="field-label">Minutes</span><input className="text-input" type="number" min={1} max={720} value={customDuration} onChange={(event) => setCustomDuration(Number(event.target.value))} required /></label>}<div className="partner-actions"><button className="secondary-button" type="button" onClick={() => setShowSessionForm(false)}>Cancel</button><button className="primary-button" type="submit" disabled={busy === "session-create"}><FiSend aria-hidden="true" />Send invitation</button></div></form>}
-                        {activeSession ? <div className="shared-timer"><div className="shared-timer-heading"><span className={`session-state state-${activeSession.status}`}>{activeSession.status}</span><strong>{activeSession.subjectName || "Shared focus session"}</strong><small>{Math.round(activeSession.durationSeconds / 60)} minutes</small></div><div className="timer-display"><FiClock aria-hidden="true" /><span>{timerValue(remaining)}</span></div><div className="session-members">{activeSession.members.map((member) => <div key={member.user.id}><strong>{member.isSelf ? "You" : member.user.firstName}</strong><span>{member.completedAt ? "Completed" : member.leftAt ? "Left" : member.joinedAt ? activeSession.status === "pending" ? "Ready" : "Studying" : "Invited"}</span></div>)}</div><div className="partner-actions session-actions">{activeSession.status === "pending" && !invitedBySelf && !selfMember?.joinedAt && <><button className="secondary-button" type="button" onClick={() => void run("session-decline", () => partnerService.sessionAction(activeSession.id, "decline"), "Study invitation declined.")}><FiX aria-hidden="true" />Decline</button><button className="primary-button" type="button" onClick={() => void run("session-join", () => partnerService.sessionAction(activeSession.id, "join"))}><FiCheck aria-hidden="true" />Join</button></>}{activeSession.status === "pending" && invitedBySelf && <button className="secondary-button" type="button" onClick={() => void run("session-cancel", () => partnerService.sessionAction(activeSession.id, "cancel"), "Study invitation cancelled.")}><FiX aria-hidden="true" />Cancel invitation</button>}{activeSession.status === "active" && selfMember?.joinedAt && !selfMember.leftAt && !selfMember.completedAt && <><button className="secondary-button" type="button" onClick={() => void run("session-pause", () => partnerService.sessionAction(activeSession.id, "pause"))}><FiPause aria-hidden="true" />Pause</button><button className="primary-button" type="button" onClick={() => void run("session-complete", () => partnerService.sessionAction(activeSession.id, "complete"), "Your study time was recorded.")}><FiCheck aria-hidden="true" />Complete</button></>}{activeSession.status === "paused" && selfMember?.joinedAt && !selfMember.leftAt && !selfMember.completedAt && <><button className="secondary-button" type="button" onClick={() => void run("session-resume", () => partnerService.sessionAction(activeSession.id, "resume"))}><FiPlay aria-hidden="true" />Resume</button><button className="primary-button" type="button" onClick={() => void run("session-complete", () => partnerService.sessionAction(activeSession.id, "complete"), "Your study time was recorded.")}><FiCheck aria-hidden="true" />Complete</button></>}{["active", "paused"].includes(activeSession.status) && selfMember?.joinedAt && !selfMember.leftAt && !selfMember.completedAt && <button className="secondary-button" type="button" onClick={() => void run("session-leave", () => partnerService.sessionAction(activeSession.id, "leave"), "You left the study session.")}><FiX aria-hidden="true" />Leave</button>}{["active", "paused"].includes(activeSession.status) && !selfMember?.completedAt && <button className="danger-button" type="button" onClick={() => void run("session-cancel", () => partnerService.sessionAction(activeSession.id, "cancel"), "Study session cancelled.")}><FiX aria-hidden="true" />Cancel session</button>}{selfMember?.completedAt && <span className="session-complete-note"><FiCheck aria-hidden="true" />Your time is recorded. Waiting for {partnerMember?.user.firstName || "partner"}.</span>}</div></div> : !showSessionForm && <p className="empty-state">Invite your partner to a server-timed focus session. Each participant's completed time is saved to their own study history.</p>}
+                        {activeSession ? <div className="shared-timer"><div className="shared-timer-heading"><span className={`session-state state-${activeSession.status}`}>{activeSession.status}</span><strong>{activeSession.subjectName || "Shared focus session"}</strong><small>{Math.round(activeSession.durationSeconds / 60)} minutes</small></div><div className="timer-display"><FiClock aria-hidden="true" /><span>{timerValue(remaining)}</span></div><div className="session-members">{activeSession.members.map((member) => <div key={member.user.id}><strong>{member.isSelf ? "You" : member.user.firstName}</strong><span>{member.completedAt ? "Completed" : member.leftAt ? "Left" : member.joinedAt ? activeSession.status === "pending" ? "Ready" : "Studying" : "Invited"}</span></div>)}</div><div className="partner-actions session-actions">{activeSession.status === "pending" && !invitedBySelf && !selfMember?.joinedAt && <><button className="secondary-button" type="button" onClick={() => void run("session-decline", () => performSessionAction("decline"), "Study invitation declined.")}><FiX aria-hidden="true" />Decline</button><button className="primary-button" type="button" onClick={() => void run("session-join", () => performSessionAction("join"))}><FiCheck aria-hidden="true" />Join</button></>}{activeSession.status === "pending" && invitedBySelf && <button className="secondary-button" type="button" onClick={() => void run("session-cancel", () => performSessionAction("cancel"), "Study invitation cancelled.")}><FiX aria-hidden="true" />Cancel invitation</button>}{activeSession.status === "active" && selfMember?.joinedAt && !selfMember.leftAt && !selfMember.completedAt && <><button className="secondary-button" type="button" onClick={() => void run("session-pause", () => performSessionAction("pause"))}><FiPause aria-hidden="true" />Pause</button><button className="primary-button" type="button" onClick={() => void run("session-complete", () => performSessionAction("complete"), "Your study time was recorded.")}><FiCheck aria-hidden="true" />Complete</button></>}{activeSession.status === "paused" && selfMember?.joinedAt && !selfMember.leftAt && !selfMember.completedAt && <><button className="secondary-button" type="button" onClick={() => void run("session-resume", () => performSessionAction("resume"))}><FiPlay aria-hidden="true" />Resume</button><button className="primary-button" type="button" onClick={() => void run("session-complete", () => performSessionAction("complete"), "Your study time was recorded.")}><FiCheck aria-hidden="true" />Complete</button></>}{["active", "paused"].includes(activeSession.status) && selfMember?.joinedAt && !selfMember.leftAt && !selfMember.completedAt && <><button className="secondary-button" type="button" aria-pressed={!musicMuted} onClick={() => setMusicMuted((current) => !current)} title={musicMuted ? "Unmute music" : "Mute music"}>{musicMuted ? <FiVolumeX aria-hidden="true" /> : <FiVolume2 aria-hidden="true" />}{musicMuted ? "Unmute music" : "Mute music"}</button><button className="secondary-button" type="button" onClick={() => void run("session-leave", () => performSessionAction("leave"), "You left the study session.")}><FiX aria-hidden="true" />Leave</button></>}{["active", "paused"].includes(activeSession.status) && !selfMember?.completedAt && <button className="danger-button" type="button" onClick={() => void run("session-cancel", () => performSessionAction("cancel"), "Study session cancelled.")}><FiX aria-hidden="true" />Cancel session</button>}{selfMember?.completedAt && <span className="session-complete-note"><FiCheck aria-hidden="true" />Your time is recorded. Waiting for {partnerMember?.user.firstName || "partner"}.</span>}</div></div> : !showSessionForm && <p className="empty-state">Invite your partner to a server-timed focus session. Each participant's completed time is saved to their own study history.</p>}
                     </section>
 
                     <section className="partner-section" aria-labelledby="goals-heading">

@@ -3,7 +3,6 @@ import type { FormEvent } from "react";
 import { FiPlus, FiX } from "react-icons/fi";
 import { FormActions } from "../forms/FormActions";
 import { ModalForm } from "../forms/ModalForm";
-import { calculateDuration } from "../../utils/date";
 import type { WorkoutExercise, WorkoutTemplate, WorkoutTemplateDay, WorkoutTemplateInput, WorkoutType } from "../../types/productivity";
 
 const dayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -61,7 +60,21 @@ export function WorkoutTemplateEditor({ template, onClose, onSave, onDelete }: W
             await onSave({
                 name: name.trim(),
                 recurring,
-                days: activeDays.map(({ active: _active, ...day }) => ({ ...day, workoutName: day.workoutName.trim(), plannedMinutes: calculateDuration(day.startTime, day.endTime), exercises: day.exercises.map((exercise) => ({ ...exercise, name: exercise.name.trim(), notes: exercise.notes.trim() })) })),
+                days: activeDays.map(({ active: _active, ...day }) => ({
+                    ...(day.id.startsWith("day-") ? {} : { id: day.id }),
+                    dayOfWeek: day.dayOfWeek,
+                    workoutName: day.workoutName.trim(),
+                    workoutType: day.workoutType,
+                    startTime: day.startTime,
+                    endTime: day.endTime,
+                    exercises: day.exercises.map((exercise) => ({
+                        ...(exercise.id.startsWith("exercise-") ? {} : { id: exercise.id }),
+                        name: exercise.name.trim(),
+                        sets: exercise.sets,
+                        reps: exercise.reps,
+                        notes: exercise.notes.trim(),
+                    })),
+                })),
             });
             onClose();
         } catch (requestError) {
