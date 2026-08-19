@@ -27,7 +27,7 @@ function durationForMode(settings: PomodoroSettings, mode: SessionType) {
 export function StudyPomodoro() {
     const { subjects } = useProductivity();
     const { sessions, activeSession, pomodoroSettings, error: sessionsError, createSession, updateSession, cancelSession, updatePomodoroSettings } = useSessions();
-    const { musicMuted, setMusicMuted, volume, setVolume, startMusic, pauseMusic, stopMusic, completeAudio } = usePomodoroAudio();
+    const { musicMuted, setMusicMuted: updateMusicMuted, volume, setVolume, startMusic, pauseMusic, stopMusic, completeAudio } = usePomodoroAudio();
     const studySession = activeSession?.activity === "study" ? activeSession : null;
     const completedFocusSessions = useMemo(() => sessions.filter((session) => session.activity === "study" && session.sessionType === "focus" && session.status === "completed"), [sessions]);
     const [subjectId, setSubjectId] = useState(subjects[0]?.id ?? "");
@@ -38,12 +38,18 @@ export function StudyPomodoro() {
     const [error, setError] = useState("");
     const [settingsDraft, setSettingsDraft] = useState(() => ({ focus: pomodoroSettings.focusDuration / 60, short: pomodoroSettings.shortBreakDuration / 60, long: pomodoroSettings.longBreakDuration / 60 }));
     const finalizingSession = useRef<string | null>(null);
+    const observedSession = useRef<string | null>(null);
 
     useEffect(() => {
-        if (studySession?.status === "running") startMusic();
-        else if (studySession?.status === "paused") pauseMusic();
-        else stopMusic();
+        if (studySession?.status === "running") { observedSession.current = studySession.id; startMusic(); }
+        else if (studySession?.status === "paused") { observedSession.current = studySession.id; pauseMusic(); }
+        else if (observedSession.current) { observedSession.current = null; stopMusic(); }
     }, [pauseMusic, startMusic, stopMusic, studySession?.id, studySession?.status]);
+
+    function setMusicMuted(update: (current: boolean) => boolean) {
+        updateMusicMuted(update);
+        if (studySession?.status === "running") startMusic();
+    }
 
     useEffect(() => {
         if (!subjectId && subjects.length) setSubjectId(subjects[0].id);

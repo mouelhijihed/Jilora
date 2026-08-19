@@ -33,7 +33,7 @@ function goalValue(value: number, type: SharedGoal["type"]) { return type === "s
 
 export function Partner() {
     const { user } = useAuth();
-    const { musicMuted, setMusicMuted, prepareMusic, startMusic, pauseMusic, stopMusic, completeAudio } = usePomodoroAudio();
+    const { musicMuted, setMusicMuted: updateMusicMuted, prepareMusic, startMusic, pauseMusic, stopMusic, completeAudio } = usePomodoroAudio();
     const [state, setState] = useState<PartnerState | null>(null);
     const [shared, setShared] = useState<PartnerSharedData | null>(null);
     const [settings, setSettings] = useState<PartnerSettings | null>(null);
@@ -89,14 +89,6 @@ export function Partner() {
     useEffect(() => { const interval = window.setInterval(() => setClock(Date.now()), 1000); return () => window.clearInterval(interval); }, []);
 
     const activeSession = state?.activeSession;
-    const audioMember = activeSession?.members.find((member) => member.isSelf);
-    useEffect(() => {
-        if (!activeSession || !audioMember?.joinedAt || audioMember.leftAt) { stopMusic(); return; }
-        if (audioMember.completedAt || activeSession.status === "completed") { completeAudio(activeSession.id); return; }
-        if (activeSession.status === "active") startMusic();
-        else if (activeSession.status === "paused") pauseMusic();
-        else stopMusic();
-    }, [activeSession, audioMember, completeAudio, pauseMusic, startMusic, stopMusic]);
 
     async function run(key: string, action: () => Promise<unknown>, success?: string) {
         setBusy(key); setError(""); setNotice("");
@@ -166,6 +158,11 @@ export function Partner() {
             if (action === "join" || action === "resume") pauseMusic();
             throw requestError;
         }
+    }
+
+    function setMusicMuted(update: (current: boolean) => boolean) {
+        updateMusicMuted(update);
+        if (activeSession?.status === "active") startMusic();
     }
 
     async function removePartner() {
