@@ -33,7 +33,7 @@ function goalValue(value: number, type: SharedGoal["type"]) { return type === "s
 
 export function Partner() {
     const { user } = useAuth();
-    const { musicMuted, setMusicMuted: updateMusicMuted, prepareMusic, startMusic, pauseMusic, stopMusic, completeAudio } = usePomodoroAudio();
+    const { musicMuted, setMusicMuted: updateMusicMuted, prepareMusic, startMusic, pauseMusic, stopMusic } = usePomodoroAudio();
     const [state, setState] = useState<PartnerState | null>(null);
     const [shared, setShared] = useState<PartnerSharedData | null>(null);
     const [settings, setSettings] = useState<PartnerSettings | null>(null);
@@ -151,7 +151,7 @@ export function Partner() {
         try {
             const result = await partnerService.sessionAction(activeSession.id, action);
             if (action === "pause") pauseMusic();
-            if (action === "complete") completeAudio(activeSession.id);
+            if (action === "complete") stopMusic();
             if (action === "decline" || action === "leave" || action === "cancel") stopMusic();
             return result;
         } catch (requestError) {

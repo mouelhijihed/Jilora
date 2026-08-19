@@ -51,6 +51,7 @@ export function PomodoroAudioProvider({ children }: { children: ReactNode }) {
     const alarmRef = useRef<HTMLAudioElement | null>(null);
     const alarmedSession = useRef<string | null>(null);
     const partnerSession = useRef<string | null>(null);
+    const partnerAlarmTimer = useRef<number | null>(null);
     const personalSession = useRef<string | null>(null);
     const playbackState = useRef<"playing" | "paused" | "stopped">("stopped");
     const pageHiding = useRef(false);
@@ -69,14 +70,20 @@ export function PomodoroAudioProvider({ children }: { children: ReactNode }) {
         } satisfies PlaybackSnapshot));
     }, []);
 
+    const clearPartnerAlarm = useCallback(() => {
+        if (partnerAlarmTimer.current !== null) window.clearTimeout(partnerAlarmTimer.current);
+        partnerAlarmTimer.current = null;
+    }, []);
+
     const stopMusic = useCallback(() => {
+        clearPartnerAlarm();
         playbackState.current = "stopped";
         window.sessionStorage.removeItem(PLAYBACK_STORAGE_KEY);
         const music = musicRef.current;
         if (!music) return;
         music.pause();
         music.currentTime = 0;
-    }, []);
+    }, [clearPartnerAlarm]);
 
     const startMusic = useCallback(() => {
         playbackState.current = "playing";
@@ -180,21 +187,29 @@ export function PomodoroAudioProvider({ children }: { children: ReactNode }) {
         try {
             const session = (await partnerService.state()).activeSession;
             const member = session?.members.find((item) => item.isSelf);
+            clearPartnerAlarm();
             if (!session || !member?.joinedAt || member.leftAt) {
                 if (partnerSession.current) stopMusic();
                 partnerSession.current = null;
                 return;
             }
             partnerSession.current = session.id;
-            if (member.completedAt || session.status === "completed") completeAudio(session.id);
-            else if (session.status === "active") startMusic();
+            if (member.completedAt || session.status === "completed") stopMusic();
+            else if (session.status === "active") {
+                const remainingSeconds = Math.max(0, session.durationSeconds - session.elapsedSeconds);
+                if (remainingSeconds === 0) completeAudio(session.id);
+                else {
+                    startMusic();
+                    partnerAlarmTimer.current = window.setTimeout(() => completeAudio(session.id), remainingSeconds * 1000);
+                }
+            }
             else if (session.status === "paused") pauseMusic();
         } catch (error) {
             if (import.meta.env.DEV) console.warn("[Pomodoro audio] could not synchronize the shared study session", error);
         } finally {
             setPartnerChecked(true);
         }
-    }, [completeAudio, pauseMusic, startMusic, stopMusic]);
+    }, [clearPartnerAlarm, completeAudio, pauseMusic, startMusic, stopMusic]);
 
     useEffect(() => {
         void syncPartnerSession();
@@ -202,6 +217,8 @@ export function PomodoroAudioProvider({ children }: { children: ReactNode }) {
             if (["all", "partner", "sessions"].includes(change.scope)) void syncPartnerSession();
         });
     }, [syncPartnerSession]);
+
+    useEffect(() => clearPartnerAlarm, [clearPartnerAlarm]);
 
     useEffect(() => {
         const session = activeSession?.activity === "study" ? activeSession : null;
