@@ -33,7 +33,7 @@ function goalValue(value: number, type: SharedGoal["type"]) { return type === "s
 
 export function Partner() {
     const { user } = useAuth();
-    const { musicMuted, setMusicMuted: updateMusicMuted, prepareMusic, startMusic, pauseMusic, stopMusic } = usePomodoroAudio();
+    const { musicMuted, setMusicMuted: updateMusicMuted, prepareMusic, soundBlocked, soundMessage, retrySound, startMusic, pauseMusic, stopMusic } = usePomodoroAudio();
     const [state, setState] = useState<PartnerState | null>(null);
     const [shared, setShared] = useState<PartnerSharedData | null>(null);
     const [settings, setSettings] = useState<PartnerSettings | null>(null);
@@ -140,7 +140,7 @@ export function Partner() {
     async function createSession(event: FormEvent) {
         event.preventDefault();
         const duration = sessionDuration === 0 ? customDuration : sessionDuration;
-        prepareMusic();
+        await prepareMusic();
         await run("session-create", () => partnerService.createSession(sessionSubject || undefined, duration), "Study invitation sent.");
         setShowSessionForm(false);
     }
@@ -220,6 +220,7 @@ export function Partner() {
 
             {shared && <section className="partner-comparison" aria-labelledby="week-heading"><div className="section-header"><div><p className="eyebrow">This week</p><h2 id="week-heading">Shared overview</h2></div><span className="privacy-note">Partner values follow their sharing settings</span></div><div className="comparison-head"><span>Metric</span><strong>You</strong><strong>{shared.partner.user.firstName}</strong></div><div className="comparison-status"><span>Current activity</span><strong>{shared.self.status}</strong><strong>{shared.partner.status}</strong></div>{shared.partner.study && <div className="comparison-row"><span>Study<strong>{shared.partner.study.currentSubject ? `Current: ${shared.partner.study.currentSubject}` : "Focus time"}</strong></span><b>{formatMinutes(shared.self.study?.weekMinutes || 0)}</b><b>{formatMinutes(shared.partner.study.weekMinutes)}</b></div>}{shared.partner.homework && <div className="comparison-row"><span>Homework<strong>Completed / total</strong></span><b>{shared.self.homework?.completed || 0} / {shared.self.homework?.total || 0}</b><b>{shared.partner.homework.completed} / {shared.partner.homework.total}</b></div>}{shared.partner.gym && <div className="comparison-row"><span>Workouts<strong>Completed this week</strong></span><b>{shared.self.gym?.weekCompleted || 0}</b><b>{shared.partner.gym.weekCompleted}</b></div>}{shared.partner.job && <div className="comparison-row"><span>Part-Time Job<strong>Hours logged</strong></span><b>{formatMinutes(shared.self.job?.weekMinutes || 0)}</b><b>{formatMinutes(shared.partner.job.weekMinutes)}</b></div>}</section>}
 
+            {soundBlocked && <div className="notice notice-error" role="alert"><span>{soundMessage || "Sound is blocked by your browser."}</span><button className="small-button" type="button" onClick={() => void retrySound()}>Enable sound</button></div>}
             <section className="partner-main-grid">
                 <div className="partner-column">
                     <section className="partner-section" aria-labelledby="session-heading"><div className="section-header"><div><p className="eyebrow">Focus</p><h2 id="session-heading">Study together</h2></div>{!activeSession && <button className="primary-button" type="button" onClick={() => setShowSessionForm((current) => !current)}><FiPlay aria-hidden="true" />Start session</button>}</div>

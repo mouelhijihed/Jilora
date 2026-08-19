@@ -27,7 +27,7 @@ function durationForMode(settings: PomodoroSettings, mode: SessionType) {
 export function StudyPomodoro() {
     const { subjects } = useProductivity();
     const { sessions, activeSession, pomodoroSettings, error: sessionsError, createSession, updateSession, cancelSession, updatePomodoroSettings } = useSessions();
-    const { musicMuted, setMusicMuted: updateMusicMuted, volume, setVolume, startMusic, pauseMusic, stopMusic, completeAudio } = usePomodoroAudio();
+    const { musicMuted, setMusicMuted: updateMusicMuted, volume, setVolume, soundBlocked, soundMessage, startMusic, retrySound, pauseMusic, stopMusic, completeAudio } = usePomodoroAudio();
     const studySession = activeSession?.activity === "study" ? activeSession : null;
     const completedFocusSessions = useMemo(() => sessions.filter((session) => session.activity === "study" && session.sessionType === "focus" && session.status === "completed"), [sessions]);
     const [subjectId, setSubjectId] = useState(subjects[0]?.id ?? "");
@@ -97,7 +97,7 @@ export function StudyPomodoro() {
         if (studySession?.status === "paused") {
             setSaving(true); setError("");
             try {
-                startMusic();
+                await startMusic();
                 await updateSession(studySession.id, { status: "running", activeStartedAt: new Date().toISOString(), actualDuration: studySession.actualDuration });
                 setNow(Date.now());
             } catch (requestError) {
@@ -113,7 +113,7 @@ export function StudyPomodoro() {
         const startedAt = new Date().toISOString();
         setSaving(true); setError(""); finalizingSession.current = null;
         try {
-            startMusic();
+            await startMusic();
             await createSession({ activity: "study", subjectId: mode === "focus" ? subject?.id : "", subject: mode === "focus" ? subject?.name : "", topic: mode === "focus" ? topic.trim() : modeLabels[mode], plannedDuration: durationForMode(pomodoroSettings, mode), actualDuration: 0, status: "running", sessionType: mode, pomodoroNumber: completedFocusSessions.length + (mode === "focus" ? 1 : 0), startedAt, activeStartedAt: startedAt });
             setNow(Date.now());
         } catch (requestError) {
@@ -171,6 +171,7 @@ export function StudyPomodoro() {
             <div className="pomodoro-progress" aria-label={`${progress}% elapsed`}><span style={{ width: `${progress}%` }} /></div>
             <div className="pomodoro-cycle"><span>Pomodoro #{completedFocusSessions.length + 1}</span><span>{completedToday} completed today</span></div>
             <div className="pomodoro-controls"><button className="primary-button" type="button" onClick={() => void start()} disabled={saving || studySession?.status === "running"}>{studySession?.status === "paused" ? "Resume" : "Start"}</button><button className="secondary-button" type="button" onClick={() => void pause()} disabled={saving || studySession?.status !== "running"}>Pause</button><button className="danger-button" type="button" onClick={() => void stop()} disabled={saving || !studySession}>Stop</button><button className="secondary-button" type="button" aria-pressed={!musicMuted} onClick={() => setMusicMuted((current) => !current)}>{musicMuted ? "Unmute music" : "Mute music"}</button></div>
+            {soundBlocked && <div className="notice notice-error" role="alert"><span>{soundMessage || "Sound is blocked by your browser."}</span><button className="small-button" type="button" onClick={() => void retrySound()}>Enable sound</button></div>}
             {(error || sessionsError) && <p className="form-error">{error || sessionsError}</p>}
         </div>
     </section>;

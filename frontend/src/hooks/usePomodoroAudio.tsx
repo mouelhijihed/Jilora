@@ -2,16 +2,18 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { partnerService } from "../services/partnerService";
+import { useAuth } from "./useAuth";
 import { subscribeRealtime } from "./useRealtime";
 import { useSessions } from "./useSessions";
 
 const MUSIC_FILE = "No Copyright Music \u{1F3B8} Lofi - Lofi Loop 1 Minute Looping.mp3";
 const ALARM_FILE = "Digital alarm clock sound effect beeping sounds.mp3";
-export const POMODORO_MUSIC_URL = `/audio/${encodeURIComponent(MUSIC_FILE)}`;
-const ALARM_URL = `/audio/${encodeURIComponent(ALARM_FILE)}`;
+export const POMODORO_MUSIC_URL = `${import.meta.env.BASE_URL}audio/${encodeURIComponent(MUSIC_FILE)}`;
+const ALARM_URL = `${import.meta.env.BASE_URL}audio/${encodeURIComponent(ALARM_FILE)}`;
 const PLAYBACK_STORAGE_KEY = "jilora-pomodoro-music-playback";
 
 type PlaybackSnapshot = { currentTime: number; playing: boolean; savedAt: number };
+type SoundProblem = { kind: "music" | "alarm"; message: string; sessionId?: string };
 
 function playbackSnapshot() {
     try {
@@ -27,8 +29,11 @@ type PomodoroAudioContextValue = {
     setMusicMuted: Dispatch<SetStateAction<boolean>>;
     volume: number;
     setVolume: Dispatch<SetStateAction<number>>;
-    prepareMusic: () => void;
-    startMusic: () => void;
+    soundBlocked: boolean;
+    soundMessage: string;
+    prepareMusic: () => Promise<boolean>;
+    startMusic: () => Promise<boolean>;
+    retrySound: () => Promise<boolean>;
     pauseMusic: () => void;
     stopMusic: () => void;
     completeAudio: (sessionId: string) => void;
@@ -41,14 +46,20 @@ function reportAudioError(label: string, url: string, error: unknown) {
 }
 
 export function PomodoroAudioProvider({ children }: { children: ReactNode }) {
+    const { user } = useAuth();
     const { activeSession, loading: sessionsLoading } = useSessions();
-    const [musicMuted, setMusicMuted] = useState(() => window.localStorage.getItem("jilora-pomodoro-music-muted") === "true");
+    const muteStorageKey = `jilora-pomodoro-music-muted:${user?.id || "anonymous"}`;
+    const volumeStorageKey = `jilora-pomodoro-volume:${user?.id || "anonymous"}`;
+    const [musicMuted, setMusicMuted] = useState(() => window.localStorage.getItem(muteStorageKey) === "true");
     const [volume, setVolume] = useState(() => {
-        const value = Number(window.localStorage.getItem("jilora-pomodoro-volume"));
-        return Number.isFinite(value) && value >= 0 && value <= 1 ? value : 0.35;
+        const value = Number(window.localStorage.getItem(volumeStorageKey));
+        return Number.isFinite(value) && value > 0 && value <= 1 ? value : 0.35;
     });
+    const [soundProblem, setSoundProblem] = useState<SoundProblem | null>(null);
     const musicRef = useRef<HTMLAudioElement | null>(null);
     const alarmRef = useRef<HTMLAudioElement | null>(null);
+    const musicReady = useRef(false);
+    const alarmReady = useRef(false);
     const alarmedSession = useRef<string | null>(null);
     const partnerSession = useRef<string | null>(null);
     const partnerAlarmTimer = useRef<number | null>(null);
@@ -56,6 +67,8 @@ export function PomodoroAudioProvider({ children }: { children: ReactNode }) {
     const playbackState = useRef<"playing" | "paused" | "stopped">("stopped");
     const pageHiding = useRef(false);
     const [partnerChecked, setPartnerChecked] = useState(false);
+    const alarmUnlocked = useRef(false);
+    const pendingAlarmSession = useRef<string | null>(null);
 
     const persistPlayback = useCallback(() => {
         const music = musicRef.current;
@@ -85,27 +98,76 @@ export function PomodoroAudioProvider({ children }: { children: ReactNode }) {
         music.currentTime = 0;
     }, [clearPartnerAlarm]);
 
-    const startMusic = useCallback(() => {
-        playbackState.current = "playing";
-        const music = musicRef.current;
-        if (!music) return;
-        void music.play().catch((error) => reportAudioError("background music", POMODORO_MUSIC_URL, error));
+    const primeAlarm = useCallback(async () => {
+        if (alarmUnlocked.current) return true;
+        const alarm = alarmRef.current;
+        if (!alarm) return false;
+        const previousMuted = alarm.muted;
+        alarm.muted = true;
+        alarm.currentTime = 0;
+        if (alarm.readyState === HTMLMediaElement.HAVE_NOTHING) alarm.load();
+        try {
+            await alarm.play();
+            alarm.pause();
+            alarm.currentTime = 0;
+            alarm.muted = previousMuted;
+            alarmUnlocked.current = true;
+            return true;
+        } catch (error) {
+            alarm.muted = previousMuted;
+            reportAudioError("completion alarm preparation", ALARM_URL, error);
+            return false;
+        }
     }, []);
 
-    const prepareMusic = useCallback(() => {
+    const startMusic = useCallback(async () => {
+        playbackState.current = "playing";
         const music = musicRef.current;
-        if (!music) return;
+        if (!music) {
+            setSoundProblem({ kind: "music", message: "Pomodoro sound could not load." });
+            return false;
+        }
+        if (music.readyState === HTMLMediaElement.HAVE_NOTHING) music.load();
+        const alarmPreparation = primeAlarm();
+        try {
+            await music.play();
+            void alarmPreparation;
+            setSoundProblem((current) => current?.kind === "music" ? null : current);
+            return true;
+        } catch (error) {
+            void alarmPreparation;
+            setSoundProblem({ kind: "music", message: "Sound is blocked by your browser." });
+            reportAudioError("background music", POMODORO_MUSIC_URL, error);
+            return false;
+        }
+    }, [primeAlarm]);
+
+    const prepareMusic = useCallback(async () => {
+        const music = musicRef.current;
+        if (!music) {
+            setSoundProblem({ kind: "music", message: "Pomodoro sound could not load." });
+            return false;
+        }
         const muted = music.muted;
         music.muted = true;
-        void music.play().then(() => {
+        if (music.readyState === HTMLMediaElement.HAVE_NOTHING) music.load();
+        const alarmPreparation = primeAlarm();
+        try {
+            await music.play();
             music.pause();
             music.currentTime = 0;
             music.muted = muted;
-        }).catch((error) => {
+            void alarmPreparation;
+            setSoundProblem((current) => current?.kind === "music" ? null : current);
+            return true;
+        } catch (error) {
             music.muted = muted;
+            void alarmPreparation;
+            setSoundProblem({ kind: "music", message: "Sound is blocked by your browser." });
             reportAudioError("background music preparation", POMODORO_MUSIC_URL, error);
-        });
-    }, []);
+            return false;
+        }
+    }, [primeAlarm]);
 
     const pauseMusic = useCallback(() => {
         playbackState.current = "paused";
@@ -113,25 +175,69 @@ export function PomodoroAudioProvider({ children }: { children: ReactNode }) {
         persistPlayback();
     }, [persistPlayback]);
 
+    const playAlarm = useCallback(async (sessionId: string, retry = false) => {
+        if (alarmedSession.current === sessionId) return true;
+        if (!retry && pendingAlarmSession.current === sessionId) return false;
+        const alarm = alarmRef.current;
+        if (!alarm) {
+            setSoundProblem({ kind: "alarm", message: "Pomodoro sound could not load.", sessionId });
+            return false;
+        }
+        pendingAlarmSession.current = sessionId;
+        alarm.currentTime = 0;
+        alarm.muted = false;
+        if (alarm.readyState === HTMLMediaElement.HAVE_NOTHING) alarm.load();
+        try {
+            await alarm.play();
+            alarmedSession.current = sessionId;
+            pendingAlarmSession.current = null;
+            setSoundProblem((current) => current?.kind === "alarm" ? null : current);
+            return true;
+        } catch (error) {
+            setSoundProblem({ kind: "alarm", message: "Sound is blocked by your browser.", sessionId });
+            reportAudioError("completion alarm", ALARM_URL, error);
+            return false;
+        }
+    }, []);
+
     const completeAudio = useCallback((sessionId: string) => {
         stopMusic();
-        if (alarmedSession.current === sessionId) return;
-        alarmedSession.current = sessionId;
-        const alarm = alarmRef.current;
-        if (!alarm) return;
-        alarm.currentTime = 0;
-        void alarm.play().catch((error) => reportAudioError("completion alarm", ALARM_URL, error));
-    }, [stopMusic]);
+        void playAlarm(sessionId);
+    }, [playAlarm, stopMusic]);
+
+    const retrySound = useCallback(async () => {
+        if (soundProblem?.kind === "alarm") {
+            if (soundProblem.sessionId) return playAlarm(soundProblem.sessionId, true);
+            const unlocked = await primeAlarm();
+            if (unlocked) setSoundProblem(null);
+            return unlocked;
+        }
+        return startMusic();
+    }, [playAlarm, primeAlarm, soundProblem, startMusic]);
 
     useEffect(() => {
         const music = new Audio(POMODORO_MUSIC_URL);
         music.loop = true;
+        music.preload = "auto";
         const alarm = new Audio(ALARM_URL);
         alarm.loop = false;
-        const reportMusicError = () => { if (import.meta.env.DEV) console.warn(`[Pomodoro audio] background music failed to load (${POMODORO_MUSIC_URL})`); };
-        const reportAlarmError = () => { if (import.meta.env.DEV) console.warn(`[Pomodoro audio] completion alarm failed to load (${ALARM_URL})`); };
+        alarm.preload = "auto";
+        const reportMusicError = () => {
+            musicReady.current = false;
+            setSoundProblem({ kind: "music", message: "Pomodoro sound could not load." });
+            if (import.meta.env.DEV) console.warn(`[Pomodoro audio] background music failed to load (${POMODORO_MUSIC_URL})`);
+        };
+        const reportAlarmError = () => {
+            alarmReady.current = false;
+            setSoundProblem({ kind: "alarm", message: "Pomodoro sound could not load." });
+            if (import.meta.env.DEV) console.warn(`[Pomodoro audio] completion alarm failed to load (${ALARM_URL})`);
+        };
+        const markMusicReady = () => { musicReady.current = true; };
+        const markAlarmReady = () => { alarmReady.current = true; };
         music.addEventListener("error", reportMusicError);
+        music.addEventListener("canplay", markMusicReady);
         alarm.addEventListener("error", reportAlarmError);
+        alarm.addEventListener("canplay", markAlarmReady);
         musicRef.current = music;
         alarmRef.current = alarm;
         const snapshot = playbackSnapshot();
@@ -151,9 +257,11 @@ export function PomodoroAudioProvider({ children }: { children: ReactNode }) {
             if (!pageHiding.current) window.sessionStorage.removeItem(PLAYBACK_STORAGE_KEY);
             music.pause();
             music.removeEventListener("error", reportMusicError);
+            music.removeEventListener("canplay", markMusicReady);
             music.src = "";
             alarm.pause();
             alarm.removeEventListener("error", reportAlarmError);
+            alarm.removeEventListener("canplay", markAlarmReady);
             alarm.src = "";
             musicRef.current = null;
             alarmRef.current = null;
@@ -179,9 +287,9 @@ export function PomodoroAudioProvider({ children }: { children: ReactNode }) {
             musicRef.current.volume = volume;
         }
         if (alarmRef.current) alarmRef.current.volume = volume;
-        window.localStorage.setItem("jilora-pomodoro-music-muted", String(musicMuted));
-        window.localStorage.setItem("jilora-pomodoro-volume", String(volume));
-    }, [musicMuted, volume]);
+        window.localStorage.setItem(muteStorageKey, String(musicMuted));
+        window.localStorage.setItem(volumeStorageKey, String(volume));
+    }, [musicMuted, muteStorageKey, volume, volumeStorageKey]);
 
     const syncPartnerSession = useCallback(async () => {
         try {
@@ -231,7 +339,27 @@ export function PomodoroAudioProvider({ children }: { children: ReactNode }) {
         if (!sessionsLoading && partnerChecked && !activeSession && !partnerSession.current) stopMusic();
     }, [activeSession, partnerChecked, sessionsLoading, stopMusic]);
 
-    const value = useMemo(() => ({ musicMuted, setMusicMuted, volume, setVolume, prepareMusic, startMusic, pauseMusic, stopMusic, completeAudio }), [completeAudio, musicMuted, pauseMusic, prepareMusic, startMusic, stopMusic, volume]);
+    useEffect(() => {
+        setMusicMuted(window.localStorage.getItem(muteStorageKey) === "true");
+        const storedVolume = Number(window.localStorage.getItem(volumeStorageKey));
+        setVolume(Number.isFinite(storedVolume) && storedVolume > 0 && storedVolume <= 1 ? storedVolume : 0.35);
+        setSoundProblem(null);
+    }, [muteStorageKey, volumeStorageKey]);
+
+    const value = useMemo(() => ({
+        musicMuted,
+        setMusicMuted,
+        volume,
+        setVolume,
+        soundBlocked: Boolean(soundProblem),
+        soundMessage: soundProblem?.message || "",
+        prepareMusic,
+        startMusic,
+        retrySound,
+        pauseMusic,
+        stopMusic,
+        completeAudio,
+    }), [completeAudio, musicMuted, pauseMusic, prepareMusic, retrySound, soundProblem, startMusic, stopMusic, volume]);
     return <PomodoroAudioContext.Provider value={value}>{children}</PomodoroAudioContext.Provider>;
 }
 
