@@ -202,8 +202,14 @@ if (!process.env.TEST_DATABASE_URL) {
 
             const custom = await a("/api/partners/goals", { method: "POST", body: JSON.stringify({ title: "Read chapters", type: "custom", target: 5, manualProgress: 1, startDate: today, endDate: today }) });
             assert.equal(custom.status, 201);
+            assert.equal(custom.body.status, "active");
             const updatedCustom = await b(`/api/partners/goals/${custom.body.id}`, { method: "PUT", body: JSON.stringify({ title: "Read chapters", type: "custom", target: 5, manualProgress: 3, startDate: today, endDate: today }) });
             assert.equal(updatedCustom.body.progress, 3);
+            const completedCustom = await a(`/api/partners/goals/${custom.body.id}/complete`, { method: "POST" });
+            assert.equal(completedCustom.status, 200);
+            assert.equal(completedCustom.body.status, "completed");
+            const orderedGoals = (await a("/api/partners/goals")).body;
+            assert.equal(orderedGoals[0].id, custom.body.id);
 
             await new Promise((resolve) => server.close(resolve));
             server = app.listen(0);

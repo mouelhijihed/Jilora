@@ -31,6 +31,7 @@ export const partnerService = {
     goals: () => apiRequest<SharedGoal[]>("/api/partners/goals").then((goals) => goals.map(goalResponse)),
     createGoal: (input: GoalInput) => apiRequest<SharedGoal>("/api/partners/goals", { method: "POST", body: JSON.stringify(goalRequest(input)) }).then(goalResponse),
     updateGoal: (id: string, input: GoalInput) => apiRequest<SharedGoal>(`/api/partners/goals/${id}`, { method: "PUT", body: JSON.stringify(goalRequest(input)) }).then(goalResponse),
+    completeGoal: (id: string) => apiRequest<SharedGoal>(`/api/partners/goals/${id}/complete`, { method: "POST" }).then(goalResponse),
     deleteGoal: (id: string) => apiRequest(`/api/partners/goals/${id}`, { method: "DELETE" }),
     createSession: (subjectId: string | undefined, durationMinutes: number) => apiRequest("/api/partners/study-sessions", { method: "POST", body: JSON.stringify({ ...(subjectId ? { subjectId } : {}), durationMinutes }) }),
     sessionAction: (id: string, action: "join" | "decline" | "leave" | "pause" | "resume" | "complete" | "cancel") => apiRequest(`/api/partners/study-sessions/${id}/${action}`, { method: "POST" }),

@@ -99,5 +99,6 @@ export type SharedGoal = {
     createdBy: string;
     progress: number;
     percent: number;
+    status: "active" | "completed" | "missed";
     contributors: Array<{ user: PartnerPerson & { id: string }; value: number | null; isSelf: boolean }>;
 };

@@ -38,6 +38,7 @@ router.put("/partners/settings", async (request,response,next)=>{try{response.js
 router.get("/partners/goals", async (request,response,next)=>{try{response.json(await service.goals(request.userId));}catch(error){next(error);}});
 router.post("/partners/goals", async (request,response,next)=>{try{response.status(201).json(await service.createGoal(request.userId,parse(schemas.partnerGoal,request.body)));}catch(error){next(error);}});
 router.put("/partners/goals/:id", async (request,response,next)=>{try{response.json(await service.updateGoal(request.userId,parse(id,request.params.id),parse(schemas.partnerGoal,request.body)));}catch(error){next(error);}});
+router.post("/partners/goals/:id/complete", async (request,response,next)=>{try{response.json(await service.completeGoal(request.userId,parse(id,request.params.id)));}catch(error){next(error);}});
 router.delete("/partners/goals/:id", async (request,response,next)=>{try{await service.deleteGoal(request.userId,parse(id,request.params.id));response.status(204).end();}catch(error){next(error);}});
 
 router.post("/partners/study-sessions", async (request,response,next)=>{try{response.status(201).json(await service.createStudySession(request.userId,parse(schemas.partnerSession,request.body)));}catch(error){next(error);}});

@@ -224,8 +224,8 @@ async function aggregateFor(userId, settings, own = false) {
             [userId],
         ),
         getPool().query("SELECT title,type,event_date,start_time,end_time FROM calendar_events WHERE user_id=$1 AND event_date>=CURRENT_DATE ORDER BY event_date,start_time LIMIT 5", [userId]),
-        getPool().query("SELECT title,category,due_date,completed FROM tasks WHERE user_id=$1 AND completed=FALSE ORDER BY due_date NULLS LAST LIMIT 5", [userId]),
-        getPool().query("SELECT name,workout_date,completed FROM scheduled_workouts WHERE user_id=$1 AND workout_date BETWEEN $2 AND $3 AND status<>'cancelled' ORDER BY workout_date LIMIT 5", [userId,weekStart,weekEnd]),
+        getPool().query("SELECT title,category,due_date,completed FROM tasks WHERE user_id=$1 AND completed=FALSE ORDER BY due_date NULLS LAST LIMIT 100", [userId]),
+        getPool().query("SELECT name,workout_date,completed FROM scheduled_workouts WHERE user_id=$1 AND workout_date BETWEEN $2 AND $3 AND status<>'cancelled' ORDER BY workout_date LIMIT 100", [userId,weekStart,weekEnd]),
         presenceService.getPresence(userId),
     ]);
     const allow = (key) => own || Boolean(settings?.[key]);
@@ -302,13 +302,15 @@ async function formatGoal(goal, members, viewerId) {
         }
     }
     const target = Number(goal.target);
-    return { ...camelizeRow(goal), startDate:dateKey(goal.start_date), endDate:dateKey(goal.end_date), target, manualProgress:Number(goal.manual_progress), progress:value, percent:target>0?Math.min(100,Math.max(0,Math.round(value/target*1000)/10)):0, contributors };
+    const completed = Boolean(goal.completed);
+    const missed = !completed && dateKey(goal.end_date) < dateKey(new Date());
+    return { ...camelizeRow(goal), startDate:dateKey(goal.start_date), endDate:dateKey(goal.end_date), target, manualProgress:Number(goal.manual_progress), progress:value, percent:target>0?Math.min(100,Math.max(0,Math.round(value/target*1000)/10)):0, status:completed?"completed":missed?"missed":"active", contributors };
 }
 
 async function goals(userId) {
     const member = await membership(userId);
     if (!member) fail("You do not have a partner", 404);
-    const rows = (await getPool().query("SELECT * FROM shared_goals WHERE partnership_id=$1 AND active=TRUE ORDER BY end_date,created_at", [member.partnership_id])).rows;
+    const rows = (await getPool().query("SELECT * FROM shared_goals WHERE partnership_id=$1 AND active=TRUE ORDER BY created_at DESC", [member.partnership_id])).rows;
     return Promise.all(rows.map((goal) => formatGoal(goal, [userId, member.partner_id], userId)));
 }
 
@@ -332,6 +334,17 @@ async function deleteGoal(userId, goalId) {
     if (!member) fail("You do not have a partner", 404);
     const result = await getPool().query("UPDATE shared_goals SET active=FALSE,updated_at=NOW() WHERE id=$1 AND partnership_id=$2 AND active=TRUE RETURNING id", [goalId,member.partnership_id]);
     if (!result.rowCount) fail("Shared goal not found", 404);
+}
+
+async function completeGoal(userId, goalId) {
+    const member = await membership(userId);
+    if (!member) fail("You do not have a partner", 404);
+    const result = await getPool().query(
+        "UPDATE shared_goals SET completed=TRUE,completed_at=COALESCE(completed_at,NOW()),updated_at=NOW() WHERE id=$1 AND partnership_id=$2 AND active=TRUE RETURNING *",
+        [goalId, member.partnership_id],
+    );
+    if (!result.rowCount) fail("Shared goal not found", 404);
+    return formatGoal(result.rows[0], [userId, member.partner_id], userId);
 }
 
 function sessionElapsed(row, now = new Date()) {
@@ -471,4 +484,4 @@ async function recordSharedActivity(userId,type,message,client=getPool()) {
 
 async function dashboardSummary(userId) { const member=await membership(userId);if(!member)return null;const data=await sharedData(userId);return{partner:data.partner.user,presence:data.partner.presence,status:data.partner.status,study:data.partner.study,homework:data.partner.homework,workout:data.partner.gym,job:data.partner.job,activity:data.activity.slice(0,3)}; }
 
-module.exports={getState,invite,acceptInvitation,declineInvitation,cancelInvitation,removePartner,getSettings,updateSettings,sharedData,goals,createGoal,updateGoal,deleteGoal,createStudySession,joinSession,declineSession,leaveSession,pauseSession,resumeSession,completeSession,cancelSession,encouragement,listNotifications,readNotification,clearNotifications,recordSharedActivity,dashboardSummary};
+module.exports={getState,invite,acceptInvitation,declineInvitation,cancelInvitation,removePartner,getSettings,updateSettings,sharedData,goals,createGoal,updateGoal,completeGoal,deleteGoal,createStudySession,joinSession,declineSession,leaveSession,pauseSession,resumeSession,completeSession,cancelSession,encouragement,listNotifications,readNotification,clearNotifications,recordSharedActivity,dashboardSummary};
