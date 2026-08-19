@@ -208,8 +208,17 @@ if (!process.env.TEST_DATABASE_URL) {
             const completedCustom = await a(`/api/partners/goals/${custom.body.id}/complete`, { method: "POST" });
             assert.equal(completedCustom.status, 200);
             assert.equal(completedCustom.body.status, "completed");
+            const pomodoroGoal = await a("/api/partners/goals", { method: "POST", body: JSON.stringify({ title: "Frozen Pomodoros", type: "pomodoros", target: 100, startDate: today, endDate: today }) });
+            const completedPomodoroGoal = await a(`/api/partners/goals/${pomodoroGoal.body.id}/complete`, { method: "POST" });
+            const frozenProgress = completedPomodoroGoal.body.progress;
+            await new Promise((resolve) => setTimeout(resolve, 20));
+            const laterCompletedAt = new Date();
+            const laterStartedAt = new Date(laterCompletedAt.getTime() - 60000);
+            assert.equal((await a("/api/sessions", { method: "POST", body: JSON.stringify({ activity: "study", subject: "Later study", topic: "After goal completion", plannedDuration: 60, actualDuration: 60, status: "completed", sessionType: "focus", startedAt: laterStartedAt.toISOString(), completedAt: laterCompletedAt.toISOString() }) })).status, 201);
+            const frozenGoalAfterSession = (await a("/api/partners/goals")).body.find((item) => item.id === pomodoroGoal.body.id);
+            assert.equal(frozenGoalAfterSession.progress, frozenProgress);
             const orderedGoals = (await a("/api/partners/goals")).body;
-            assert.equal(orderedGoals[0].id, custom.body.id);
+            assert.equal(orderedGoals[0].id, pomodoroGoal.body.id);
 
             await new Promise((resolve) => server.close(resolve));
             server = app.listen(0);

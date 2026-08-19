@@ -276,16 +276,16 @@ async function sharedData(userId) {
     };
 }
 
-async function metricValue(userId, type, start, end, settings, own = false) {
+async function metricValue(userId, type, start, end, settings, own = false, completedAt = null) {
     if (type === "custom") return 0;
     if (!own && (type === "study_minutes" || type === "pomodoros") && !settings.shareStudyTime) return null;
     if (!own && type === "homework_completed" && !settings.shareHomeworkProgress) return null;
     if (type === "study_minutes") {
-        const row = (await getPool().query(`SELECT COALESCE((SELECT SUM(actual_minutes) FROM study_sessions WHERE user_id=$1 AND session_date BETWEEN $2 AND $3),0)+COALESCE((SELECT SUM(actual_duration)/60 FROM activity_sessions WHERE user_id=$1 AND activity='study' AND session_type='focus' AND status='completed' AND completed_at::date BETWEEN $2 AND $3),0) value`, [userId,start,end])).rows[0];
+        const row = (await getPool().query(`SELECT COALESCE((SELECT SUM(actual_minutes) FROM study_sessions WHERE user_id=$1 AND completed=TRUE AND session_date BETWEEN $2 AND $3 AND ($4::timestamptz IS NULL OR completed_at<=$4)),0)+COALESCE((SELECT SUM(actual_duration)/60 FROM activity_sessions WHERE user_id=$1 AND activity='study' AND session_type='focus' AND status='completed' AND completed_at::date BETWEEN $2 AND $3 AND ($4::timestamptz IS NULL OR completed_at<=$4)),0) value`, [userId,start,end,completedAt])).rows[0];
         return Number(row.value);
     }
-    if (type === "pomodoros") return Number((await getPool().query("SELECT COUNT(*) value FROM activity_sessions WHERE user_id=$1 AND activity='study' AND session_type='focus' AND status='completed' AND completed_at::date BETWEEN $2 AND $3", [userId,start,end])).rows[0].value);
-    return Number((await getPool().query("SELECT COUNT(*) value FROM homework WHERE user_id=$1 AND status='completed' AND completed_date BETWEEN $2 AND $3", [userId,start,end])).rows[0].value);
+    if (type === "pomodoros") return Number((await getPool().query("SELECT COUNT(*) value FROM activity_sessions WHERE user_id=$1 AND activity='study' AND session_type='focus' AND status='completed' AND completed_at::date BETWEEN $2 AND $3 AND ($4::timestamptz IS NULL OR completed_at<=$4)", [userId,start,end,completedAt])).rows[0].value);
+    return Number((await getPool().query("SELECT COUNT(*) value FROM homework WHERE user_id=$1 AND status='completed' AND completed_date BETWEEN $2 AND $3 AND ($4::timestamptz IS NULL OR completed_at<=$4)", [userId,start,end,completedAt])).rows[0].value);
 }
 
 async function formatGoal(goal, members, viewerId) {
@@ -295,7 +295,7 @@ async function formatGoal(goal, members, viewerId) {
         value = 0;
         for (const memberId of members) {
             const settings = await settingsFor(memberId);
-            const contribution = await metricValue(memberId, goal.type, dateKey(goal.start_date), dateKey(goal.end_date), settings, memberId === viewerId);
+            const contribution = await metricValue(memberId, goal.type, dateKey(goal.start_date), dateKey(goal.end_date), settings, memberId === viewerId, goal.completed ? goal.completed_at : null);
             const person = (await getPool().query("SELECT id,username,first_name,last_name FROM users WHERE id=$1", [memberId])).rows[0];
             contributors.push({ user:{id:person.id,username:person.username,firstName:person.first_name,lastName:person.last_name}, value:contribution, isSelf:memberId===viewerId });
             if (contribution !== null) value += contribution;

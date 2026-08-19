@@ -34,6 +34,21 @@ export function usePomodoroAudio() {
         void music.play().catch((error) => reportAudioError("background music", POMODORO_MUSIC_URL, error));
     }, []);
 
+    const prepareMusic = useCallback(() => {
+        const music = musicRef.current;
+        if (!music) return;
+        const muted = music.muted;
+        music.muted = true;
+        void music.play().then(() => {
+            music.pause();
+            music.currentTime = 0;
+            music.muted = muted;
+        }).catch((error) => {
+            music.muted = muted;
+            reportAudioError("background music preparation", POMODORO_MUSIC_URL, error);
+        });
+    }, []);
+
     const pauseMusic = useCallback(() => { musicRef.current?.pause(); }, []);
 
     const completeAudio = useCallback((sessionId: string) => {
@@ -81,5 +96,5 @@ export function usePomodoroAudio() {
 
     useEffect(() => { if (!user) stopMusic(); }, [stopMusic, user]);
 
-    return { musicMuted, setMusicMuted, volume, setVolume, startMusic, pauseMusic, stopMusic, completeAudio };
+    return { musicMuted, setMusicMuted, volume, setVolume, prepareMusic, startMusic, pauseMusic, stopMusic, completeAudio };
 }

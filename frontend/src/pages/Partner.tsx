@@ -33,7 +33,7 @@ function goalValue(value: number, type: SharedGoal["type"]) { return type === "s
 
 export function Partner() {
     const { user } = useAuth();
-    const { musicMuted, setMusicMuted, startMusic, pauseMusic, stopMusic, completeAudio } = usePomodoroAudio();
+    const { musicMuted, setMusicMuted, prepareMusic, startMusic, pauseMusic, stopMusic, completeAudio } = usePomodoroAudio();
     const [state, setState] = useState<PartnerState | null>(null);
     const [shared, setShared] = useState<PartnerSharedData | null>(null);
     const [settings, setSettings] = useState<PartnerSettings | null>(null);
@@ -148,6 +148,7 @@ export function Partner() {
     async function createSession(event: FormEvent) {
         event.preventDefault();
         const duration = sessionDuration === 0 ? customDuration : sessionDuration;
+        prepareMusic();
         await run("session-create", () => partnerService.createSession(sessionSubject || undefined, duration), "Study invitation sent.");
         setShowSessionForm(false);
     }
