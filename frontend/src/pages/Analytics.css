@@ -19,7 +19,7 @@
 .gym-analytics-heading > strong { color: var(--text-primary); font-size: 22px; }
 .gym-analytics-grid, .study-analytics-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1px; overflow: hidden; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--border-subtle); }
 .gym-analytics-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-.gym-analytics-grid > div, .study-analytics-grid > div { min-width: 0; padding: 11px; background: #171e27; }
+.gym-analytics-grid > div, .study-analytics-grid > div { min-width: 0; padding: 11px; background: var(--surface-elevated); }
 .gym-analytics-grid span, .gym-analytics-grid strong, .study-analytics-grid span, .study-analytics-grid strong { display: block; }
 .gym-analytics-grid span, .study-analytics-grid span { color: var(--text-muted); font-size: 11px; }
 .gym-analytics-grid strong, .study-analytics-grid strong { margin-top: 6px; color: var(--text-primary); font-size: 16px; }
@@ -39,6 +39,15 @@
 .chart-frame { width: 100%; height: 292px; }
 .pie-frame { display: grid; place-items: center; }
 .chart-empty { max-width: 260px; color: var(--text-muted); text-align: center; }
+.analytics-goals { margin-bottom: var(--space-5); padding: 19px 20px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+.analytics-goals h2 { margin: 2px 0 0; font-size: 18px; }
+.analytics-goal-list { display: flex; flex-direction: column; }
+.analytics-goal-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--border-subtle); }
+.analytics-goal-row:last-child { border-bottom: 0; }
+.analytics-goal-row strong, .analytics-goal-row span { display: block; }
+.analytics-goal-row span { margin-top: 3px; color: var(--text-muted); font-size: 12px; }
+.analytics-goal-row > strong { color: var(--study); }
+.analytics-empty { padding: 30px 18px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
 
 @media (max-width: 950px) {
     .chart-grid { grid-template-columns: 1fr; }
