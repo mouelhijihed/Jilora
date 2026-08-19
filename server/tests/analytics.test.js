@@ -82,9 +82,15 @@ if (!process.env.TEST_DATABASE_URL) {
     assert.equal(analytics.body.gym.completionRate, 100);
     assert.equal(analytics.body.daily[0].studyMinutes, 55);
 
+    await getPool().query(`INSERT INTO activity_sessions(id,user_id,activity,subject_id,subject,topic,planned_duration,actual_duration,status,session_type,pomodoro_number,started_at,completed_at)
+        VALUES($1,$2,'study',NULL,'Algorithms','Legacy subject reference',1800,1200,'completed','focus',2,$3,$4)`, [crypto.randomUUID(), userId, `${tomorrow}T10:00:00Z`, `${tomorrow}T10:20:00Z`]);
+    const legacySubjectAnalytics = await a(`/api/analytics?start=${tomorrow}&end=${tomorrow}`);
+    assert.equal(legacySubjectAnalytics.body.study.minutes, 75);
+    assert.equal(legacySubjectAnalytics.body.study.bySubject.find((item) => item.subject === "Algorithms").minutes, 75);
+
     const weekly = await a(`/api/analytics?start=${tomorrow}&end=${addDays(tomorrow, 6)}`);
     assert.equal(weekly.status, 200);
-    assert.equal(weekly.body.study.minutes, 55);
+    assert.equal(weekly.body.study.minutes, 75);
     const monthDate = new Date(`${tomorrow}T12:00:00`);
     const monthEnd = dateKey(new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0));
     const monthly = await a(`/api/analytics?start=${tomorrow}&end=${monthEnd}`);

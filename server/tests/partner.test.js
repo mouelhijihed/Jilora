@@ -181,7 +181,7 @@ if (!process.env.TEST_DATABASE_URL) {
             const completedSession = await a("/api/partners/study-sessions", { method: "POST", body: JSON.stringify({ durationMinutes: 1 }) });
             assert.equal(completedSession.status, 201);
             await b(`/api/partners/study-sessions/${completedSession.body.id}/join`, { method: "POST" });
-            await new Promise((resolve) => setTimeout(resolve, 1100));
+            await getPool().query("UPDATE partner_sessions SET started_at=NOW()-INTERVAL '60 seconds' WHERE id=$1", [completedSession.body.id]);
             await a(`/api/partners/study-sessions/${completedSession.body.id}/complete`, { method: "POST" });
             const completedByB = await b(`/api/partners/study-sessions/${completedSession.body.id}/complete`, { method: "POST" });
             assert.equal(completedByB.body.status, "completed");
@@ -189,9 +189,16 @@ if (!process.env.TEST_DATABASE_URL) {
             assert.equal((await a(`/api/partners/study-sessions/${completedSession.body.id}/cancel`, { method: "POST" })).status, 409);
 
             const today = new Date().toISOString().slice(0, 10);
+            await getPool().query("UPDATE user_preferences SET student=TRUE WHERE user_id=ANY($1::uuid[])", [[userA.id, userB.id]]);
+            const partnerAnalytics = await a(`/api/analytics?start=${today}&end=${today}`);
+            assert.equal(partnerAnalytics.status, 200);
+            assert.equal(partnerAnalytics.body.study.minutes, 1);
+            assert.equal(partnerAnalytics.body.study.completedPomodoros, 1);
+            assert.deepEqual(partnerAnalytics.body.study.bySubject, []);
             const goal = await a("/api/partners/goals", { method: "POST", body: JSON.stringify({ title: "Study Together", type: "study_minutes", target: 20, startDate: today, endDate: today }) });
             assert.equal(goal.status, 201);
             assert.equal(goal.body.contributors.length, 2);
+            assert.equal(goal.body.contributors.find((item) => item.user.id === userA.id).value, 1);
             assert.equal((await c(`/api/partners/goals/${goal.body.id}`, { method: "PUT", body: JSON.stringify({ title: "IDOR", type: "custom", target: 1, manualProgress: 1, startDate: today, endDate: today }) })).status, 404);
             assert.equal((await c(`/api/partners/goals/${goal.body.id}`, { method: "DELETE" })).status, 404);
             await a("/api/partners/settings", { method: "PUT", body: JSON.stringify({ ...openSettings, shareStudyTime: false }) });

@@ -18,6 +18,12 @@ function rangeRate(completed, planned) {
     return planned ? Math.round((completed / planned) * 1000) / 10 : 0;
 }
 
+function ownedActivitySubject(row, subjectsById, subjectsByName) {
+    if (row.subject_id && subjectsById.has(row.subject_id)) return subjectsById.get(row.subject_id);
+    if (String(row.subject || "").trim()) return subjectsByName.get(String(row.subject).trim().toLowerCase()) || null;
+    return null;
+}
+
 async function analytics(userId, startValue, endValue) {
     const pool = getPool();
     const timeZone = await userTimeZone(userId, pool);
@@ -65,15 +71,21 @@ async function analytics(userId, startValue, endValue) {
 
     const completedStudySessions = studySessions.rows.filter((row) => row.completed);
     const completedWorkSessions = workSessions.rows.filter((row) => row.completed);
-    const ownedSubjectIds = new Set(subjects.rows.map((subject) => subject.id));
-    const studyFocus = activitySessions.rows.filter((row) => row.activity === "study" && row.session_type === "focus" && ownedSubjectIds.has(row.subject_id));
+    const subjectsById = new Map(subjects.rows.map((subject) => [subject.id, subject]));
+    const subjectsByName = new Map(subjects.rows.map((subject) => [String(subject.name).trim().toLowerCase(), subject]));
+    const studyFocus = activitySessions.rows
+        .filter((row) => row.activity === "study" && row.session_type === "focus")
+        .map((row) => ({ ...row, resolvedSubject: ownedActivitySubject(row, subjectsById, subjectsByName) }))
+        .filter((row) => row.partner_session_id || row.resolvedSubject);
     const jobActivity = activitySessions.rows.filter((row) => row.activity === "job");
     const gymActivity = activitySessions.rows.filter((row) => row.activity === "gym" && !row.workout_id);
     const completedWorkouts = workouts.rows.filter((row) => row.completed && row.status !== "cancelled");
 
     const subjectMinutes = new Map();
     for (const row of completedStudySessions) addToMap(subjectMinutes, row.subject_id, row.actual_minutes);
-    for (const row of studyFocus) addToMap(subjectMinutes, row.subject_id, minutesFromSeconds(row.actual_duration));
+    for (const row of studyFocus) {
+        if (row.resolvedSubject) addToMap(subjectMinutes, row.resolvedSubject.id, minutesFromSeconds(row.actual_duration));
+    }
 
     const bySubject = subjects.rows.map((subject) => ({
         subject: subject.name,

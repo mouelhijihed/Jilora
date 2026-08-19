@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const { getPool, withTransaction } = require("../db/pool");
 const { fail } = require("../utils/domain");
-const { camelizeRow, camelizeRows, dateKey, startOfWeek, addDays } = require("../utils/records");
+const { camelizeRow, camelizeRows, dateKey, dateKeyInTimeZone, userTimeZone, startOfWeek, addDays } = require("../utils/records");
 const presenceService = require("./presenceService");
 
 const invitationDays = 7;
@@ -281,10 +281,14 @@ async function metricValue(userId, type, start, end, settings, own = false, comp
     if (!own && (type === "study_minutes" || type === "pomodoros") && !settings.shareStudyTime) return null;
     if (!own && type === "homework_completed" && !settings.shareHomeworkProgress) return null;
     if (type === "study_minutes") {
-        const row = (await getPool().query(`SELECT COALESCE((SELECT SUM(actual_minutes) FROM study_sessions WHERE user_id=$1 AND completed=TRUE AND session_date BETWEEN $2 AND $3 AND ($4::timestamptz IS NULL OR completed_at<=$4)),0)+COALESCE((SELECT SUM(actual_duration)/60 FROM activity_sessions WHERE user_id=$1 AND activity='study' AND session_type='focus' AND status='completed' AND completed_at::date BETWEEN $2 AND $3 AND ($4::timestamptz IS NULL OR completed_at<=$4)),0) value`, [userId,start,end,completedAt])).rows[0];
+        const timeZone = await userTimeZone(userId, getPool());
+        const row = (await getPool().query(`SELECT COALESCE((SELECT SUM(actual_minutes) FROM study_sessions WHERE user_id=$1 AND completed=TRUE AND session_date BETWEEN $2 AND $3 AND ($4::timestamptz IS NULL OR completed_at<=$4)),0)+COALESCE((SELECT SUM(actual_duration)/60 FROM activity_sessions WHERE user_id=$1 AND activity='study' AND session_type='focus' AND status='completed' AND (completed_at AT TIME ZONE $5)::date BETWEEN $2 AND $3 AND ($4::timestamptz IS NULL OR completed_at<=$4)),0) value`, [userId,start,end,completedAt,timeZone])).rows[0];
         return Number(row.value);
     }
-    if (type === "pomodoros") return Number((await getPool().query("SELECT COUNT(*) value FROM activity_sessions WHERE user_id=$1 AND activity='study' AND session_type='focus' AND status='completed' AND completed_at::date BETWEEN $2 AND $3 AND ($4::timestamptz IS NULL OR completed_at<=$4)", [userId,start,end,completedAt])).rows[0].value);
+    if (type === "pomodoros") {
+        const timeZone = await userTimeZone(userId, getPool());
+        return Number((await getPool().query("SELECT COUNT(*) value FROM activity_sessions WHERE user_id=$1 AND activity='study' AND session_type='focus' AND status='completed' AND (completed_at AT TIME ZONE $5)::date BETWEEN $2 AND $3 AND ($4::timestamptz IS NULL OR completed_at<=$4)", [userId,start,end,completedAt,timeZone])).rows[0].value);
+    }
     return Number((await getPool().query("SELECT COUNT(*) value FROM homework WHERE user_id=$1 AND status='completed' AND completed_date BETWEEN $2 AND $3 AND ($4::timestamptz IS NULL OR completed_at<=$4)", [userId,start,end,completedAt])).rows[0].value);
 }
 
